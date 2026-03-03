@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef } from "react";
+import { API_BASE } from "../config.js";
 
 export default function SourcePanel({
   status,
@@ -39,7 +40,7 @@ export default function SourcePanel({
           }
         });
         xhr.addEventListener("error", () => reject(new Error("Upload failed")));
-        xhr.open("POST", "/upload-stream");
+        xhr.open("POST", `${API_BASE}/upload-stream`);
         const fd = new FormData();
         fd.append("file", file);
         xhr.send(fd);
