@@ -41,11 +41,12 @@ class DeepgramTranscriber:
         self._speed_factor = speed_factor
         self._ws = None
         self._ffmpeg_process: subprocess.Popen | None = None
+        self._ydl_process: subprocess.Popen | None = None
         self._audio_done = asyncio.Event()
 
     async def run(self):
         """Start FFmpeg once, then stream to Deepgram with auto-reconnect on WS drops."""
-        self._ffmpeg_process = await start_ffmpeg(self.source)
+        self._ffmpeg_process, self._ydl_process = await start_ffmpeg(self.source)
         try:
             await self._stream_with_reconnect()
         finally:
@@ -183,18 +184,24 @@ class DeepgramTranscriber:
                 pass
             self._ws = None
 
-    async def _kill_ffmpeg(self):
-        if self._ffmpeg_process:
-            loop = asyncio.get_running_loop()
+    async def _kill_process(self, proc: subprocess.Popen):
+        loop = asyncio.get_running_loop()
+        try:
+            proc.terminate()
             try:
-                self._ffmpeg_process.terminate()
-                try:
-                    await asyncio.wait_for(
-                        loop.run_in_executor(None, self._ffmpeg_process.wait),
-                        timeout=3.0
-                    )
-                except asyncio.TimeoutError:
-                    self._ffmpeg_process.kill()
-            except Exception:
-                pass
+                await asyncio.wait_for(
+                    loop.run_in_executor(None, proc.wait),
+                    timeout=3.0,
+                )
+            except asyncio.TimeoutError:
+                proc.kill()
+        except Exception:
+            pass
+
+    async def _kill_ffmpeg(self):
+        if self._ydl_process:
+            await self._kill_process(self._ydl_process)
+            self._ydl_process = None
+        if self._ffmpeg_process:
+            await self._kill_process(self._ffmpeg_process)
             self._ffmpeg_process = None

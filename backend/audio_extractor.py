@@ -11,15 +11,6 @@ def _is_youtube_url(source: str) -> bool:
     return bool(re.search(r"(youtube\.com|youtu\.be)", source, re.IGNORECASE))
 
 
-def _resolve_youtube_url(source: str) -> str:
-    result = subprocess.run(
-        ["yt-dlp", "--get-url", "-f", "best", source],
-        capture_output=True, text=True, check=True,
-    )
-    url = result.stdout.strip().splitlines()[0]
-    return url
-
-
 def _detect_source_type(source: str) -> str:
     if source.startswith("rtmp://"):
         return "rtmp"
@@ -34,10 +25,6 @@ def _detect_source_type(source: str) -> str:
 
 def _build_ffmpeg_input_args(source: str) -> list[str]:
     source_type = _detect_source_type(source)
-
-    if source_type == "youtube":
-        resolved = _resolve_youtube_url(source)
-        return ["-i", resolved]
 
     if source_type == "webcam":
         if sys.platform == "win32":
@@ -55,25 +42,50 @@ def _build_ffmpeg_input_args(source: str) -> list[str]:
     return ["-i", source]
 
 
-def _drain_stderr(process: subprocess.Popen):
-    """Read and discard stderr in a background thread so FFmpeg never blocks."""
+def _drain_stderr(process: subprocess.Popen, label: str = "ffmpeg"):
+    """Read and discard stderr in a background thread so the process never blocks."""
     try:
         while True:
             line = process.stderr.readline()
             if not line:
                 break
-            print(f"[ffmpeg] {line.decode(errors='replace').rstrip()}")
+            print(f"[{label}] {line.decode(errors='replace').rstrip()}")
     except Exception:
         pass
 
 
-async def start_ffmpeg(source: str) -> subprocess.Popen:
+def _start_ydl_pipe(source: str) -> subprocess.Popen:
+    """Launch yt-dlp streaming video data to stdout so it manages token refresh internally."""
+    cmd = ["yt-dlp", "-f", "best", "-o", "-", source]
+    process = subprocess.Popen(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        bufsize=256 * 1024,
+    )
+    threading.Thread(target=_drain_stderr, args=(process, "yt-dlp"), daemon=True).start()
+    return process
+
+
+async def start_ffmpeg(source: str) -> tuple[subprocess.Popen, subprocess.Popen | None]:
     """
     Launch FFmpeg using subprocess.Popen with a large buffer.
-    Using Popen + run_in_executor is more stable on Windows than
-    asyncio.create_subprocess_exec which has pipe cancellation bugs.
+
+    For YouTube sources, a yt-dlp subprocess pipes video data into FFmpeg's stdin
+    so yt-dlp manages the YouTube session and token refresh internally.
+
+    Returns (ffmpeg_process, ydl_process) — ydl_process is None for non-YouTube sources.
     """
-    input_args = _build_ffmpeg_input_args(source)
+    source_type = _detect_source_type(source)
+    ydl_process = None
+
+    if source_type == "youtube":
+        ydl_process = _start_ydl_pipe(source)
+        input_args = ["-i", "pipe:0"]
+        stdin = ydl_process.stdout
+    else:
+        input_args = _build_ffmpeg_input_args(source)
+        stdin = None
 
     cmd = [
         "ffmpeg",
@@ -89,21 +101,24 @@ async def start_ffmpeg(source: str) -> subprocess.Popen:
 
     process = subprocess.Popen(
         cmd,
+        stdin=stdin,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         bufsize=256 * 1024,
     )
 
+    if ydl_process:
+        ydl_process.stdout.close()
+
     if process.poll() is not None:
         stderr_out = process.stderr.read()
+        if ydl_process:
+            ydl_process.kill()
         raise RuntimeError(f"FFmpeg failed to start: {stderr_out.decode()}")
 
-    # Drain stderr in a daemon thread to prevent pipe buffer from filling up
-    # and blocking FFmpeg's stdout writes
-    t = threading.Thread(target=_drain_stderr, args=(process,), daemon=True)
-    t.start()
+    threading.Thread(target=_drain_stderr, args=(process, "ffmpeg"), daemon=True).start()
 
-    return process
+    return process, ydl_process
 
 
 async def read_audio_chunks(
