@@ -23,6 +23,7 @@ DEEPGRAM_WS_URL = (
     "&model=nova-2"
     "&smart_format=true"
     "&vad_events=true"
+    "&diarize=true"
 )
 
 BATCH_SPEED_FACTOR = 3.0

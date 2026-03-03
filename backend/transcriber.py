@@ -179,11 +179,15 @@ class DeepgramTranscriber:
                     words = best.get("words", [])
                     start_time = words[0]["start"] if words else data.get("start", 0.0)
 
+                    # Speaker diarization: extract speaker from first word
+                    speaker = words[0].get("speaker", None) if words else None
+
                     await self.on_transcript({
                         "text": transcript_text,
                         "is_final": is_final,
                         "start": start_time,
                         "words": words,
+                        "speaker": speaker,
                     })
 
                 elif msg_type == "Metadata" and self._audio_done.is_set():

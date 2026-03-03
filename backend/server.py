@@ -121,14 +121,18 @@ async def websocket_endpoint(ws: WebSocket):
         text = result["text"]
         start_time = result["start"]
         is_final = result["is_final"]
+        speaker = result.get("speaker")
 
-        await _send({
+        msg_out = {
             "type": "transcript",
             "text": text,
             "is_final": is_final,
             "start": start_time,
             "timestamp": _format_timestamp(start_time),
-        })
+        }
+        if speaker is not None:
+            msg_out["speaker"] = speaker
+        await _send(msg_out)
 
         if is_final:
             transcript_history.append({"text": text, "start": start_time})

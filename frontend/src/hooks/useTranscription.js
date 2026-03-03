@@ -44,10 +44,18 @@ export default function useTranscription(videoRef) {
       while (idx < tq.length && tq[idx].start <= ct) {
         const item = tq[idx];
         if (item.is_final) {
-          finalsToAdd.push({ text: item.text, timestamp: item.timestamp });
+          finalsToAdd.push({
+            text: item.text,
+            timestamp: item.timestamp,
+            speaker: item.speaker,
+          });
           lastInterim = null;
         } else {
-          lastInterim = { text: item.text, timestamp: item.timestamp };
+          lastInterim = {
+            text: item.text,
+            timestamp: item.timestamp,
+            speaker: item.speaker,
+          };
         }
         idx++;
       }
@@ -121,10 +129,14 @@ export default function useTranscription(videoRef) {
               setInterimText(null);
               setTranscripts((prev) => [
                 ...prev,
-                { text: msg.text, timestamp: ts },
+                { text: msg.text, timestamp: ts, speaker: msg.speaker },
               ]);
             } else {
-              setInterimText({ text: msg.text, timestamp: ts });
+              setInterimText({
+                text: msg.text,
+                timestamp: ts,
+                speaker: msg.speaker,
+              });
             }
           } else {
             transcriptQueueRef.current.push({
@@ -132,6 +144,7 @@ export default function useTranscription(videoRef) {
               timestamp: ts,
               start: msg.start,
               is_final: msg.is_final,
+              speaker: msg.speaker,
             });
           }
         }
