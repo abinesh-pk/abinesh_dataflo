@@ -22,10 +22,12 @@ import traceback
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 
 from transcriber import DeepgramTranscriber
 from keyword_monitor import check_keywords
 from alert_manager import _format_timestamp
+from config import GROQ_API_KEY
 
 BASE_DIR = os.path.dirname(__file__)
 PROJECT_ROOT = os.path.abspath(os.path.join(BASE_DIR, ".."))
@@ -248,7 +250,7 @@ async def websocket_endpoint(ws: WebSocket):
                 await _cleanup_transcriber()
                 await _send({"type": "status", "status": "stopped"})
 
-    except WebSocketDisconnect:
+    except (WebSocketDisconnect, RuntimeError):
         pass
     finally:
         if task and not task.done():
@@ -259,6 +261,50 @@ async def websocket_endpoint(ws: WebSocket):
                 pass
         if transcriber:
             await transcriber.close()
+
+
+# ---------- Summarize endpoint ----------
+
+class SummarizeRequest(BaseModel):
+    transcript: str
+
+
+@app.post("/summarize")
+async def summarize_transcript(req: SummarizeRequest):
+    if not GROQ_API_KEY:
+        return JSONResponse({"error": "GROQ_API_KEY not set"}, status_code=500)
+
+    transcript = req.transcript.strip()
+    if not transcript:
+        return JSONResponse({"error": "No transcript provided"}, status_code=400)
+
+    try:
+        from langchain_groq import ChatGroq
+
+        llm = ChatGroq(
+            model="llama-3.3-70b-versatile",
+            api_key=GROQ_API_KEY,
+            temperature=0.3,
+        )
+
+        prompt = (
+            "You are an expert summarizer. Given the following transcript from a video, "
+            "produce a clear and concise summary.\n\n"
+            "Your summary should include:\n"
+            "1. A brief overview (2-3 sentences) of what the video is about.\n"
+            "2. Key topics discussed.\n"
+            "3. Important points, decisions, or action items mentioned.\n"
+            "4. Any notable quotes or statements.\n\n"
+            "Keep the summary informative yet concise. Use bullet points where appropriate.\n\n"
+            f"--- TRANSCRIPT ---\n{transcript}\n--- END TRANSCRIPT ---\n\n"
+            "Summary:"
+        )
+
+        response = llm.invoke(prompt)
+        return {"summary": response.content}
+    except Exception as e:
+        traceback.print_exc()
+        return JSONResponse({"error": str(e)}, status_code=500)
 
 
 if os.path.isdir(os.path.join(FRONTEND_DIST, "assets")):

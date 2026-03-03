@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 
 const SPEAKER_COLORS = [
   "#4fc3f7",
@@ -23,6 +23,9 @@ function speakerLabel(speaker) {
 
 export default function TranscriptBox({ transcripts, interimText }) {
   const boxRef = useRef(null);
+  const [summary, setSummary] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     if (boxRef.current) {
@@ -31,6 +34,33 @@ export default function TranscriptBox({ transcripts, interimText }) {
   }, [transcripts, interimText]);
 
   const empty = transcripts.length === 0 && !interimText;
+
+  const handleSummarize = async () => {
+    const fullText = transcripts.map((t) => t.text).join("\n");
+    if (!fullText.trim()) return;
+
+    setLoading(true);
+    setError("");
+    setSummary("");
+
+    try {
+      const res = await fetch("/summarize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ transcript: fullText }),
+      });
+      const data = await res.json();
+      if (data.error) {
+        setError(data.error);
+      } else {
+        setSummary(data.summary);
+      }
+    } catch (e) {
+      setError("Failed to generate summary");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="transcript-col">
@@ -52,6 +82,25 @@ export default function TranscriptBox({ transcripts, interimText }) {
           </div>
         )}
       </div>
+
+      {transcripts.length > 0 && (
+        <button
+          className="btn btn-summary"
+          onClick={handleSummarize}
+          disabled={loading}
+        >
+          {loading ? "⏳ Generating Summary..." : "✨ Generate Summary"}
+        </button>
+      )}
+
+      {error && <div className="summary-error">{error}</div>}
+
+      {summary && (
+        <div className="summary-box">
+          <h3>{"\uD83D\uDCCB"} Summary</h3>
+          <div className="summary-content">{summary}</div>
+        </div>
+      )}
     </div>
   );
 }

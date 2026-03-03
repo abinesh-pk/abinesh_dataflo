@@ -22,6 +22,7 @@ export default defineConfig({
       '/local-video': 'http://localhost:8000',
       '/upload': 'http://localhost:8000',
       '/videos': 'http://localhost:8000',
+      '/summarize': 'http://localhost:8000',
     },
   },
 })
