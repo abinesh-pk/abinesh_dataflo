@@ -36,8 +36,10 @@ video{width:100%;max-width:800px;border-radius:8px;background:#000}
 
 /* ---------- alerts ---------- */
 .alerts-section h2{font-size:1rem;font-weight:600;color:#aaa;margin-bottom:8px}
-.alert-latest{background:#d32f2f;color:#fff;padding:14px 16px;border-radius:8px;margin-bottom:8px;border:2px solid #ff5252;animation:pulse 1.5s ease-in-out infinite}
-.alert-past{background:#2a1a00;color:#e0c080;padding:10px 14px;border-radius:8px;margin-bottom:6px}
+.alert-latest{background:#d32f2f;color:#fff;padding:14px 16px;border-radius:8px;margin-bottom:8px;border:2px solid #ff5252;animation:pulse 1.5s ease-in-out infinite;transition:transform .1s,box-shadow .1s}
+.alert-latest:hover{transform:scale(1.01);box-shadow:0 0 20px rgba(255,82,82,.6)}
+.alert-past{background:#2a1a00;color:#e0c080;padding:10px 14px;border-radius:8px;margin-bottom:6px;transition:transform .1s,background .15s}
+.alert-past:hover{transform:scale(1.01);background:#3a2800}
 .alert-kw{font-size:1.15rem;font-weight:700}
 .alert-meta{font-size:.8rem;margin-top:2px;opacity:.85}
 .alert-ctx{font-style:italic;margin-top:4px;font-size:.9rem}

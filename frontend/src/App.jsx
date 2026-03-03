@@ -22,6 +22,8 @@ export default function App() {
     onPlay,
     onPause,
     onSeeked,
+    updateKeywords,
+    seekTo,
   } = useTranscription(videoRef);
 
   const handleConnect = useCallback((source, kw, isLiveStream) => {
@@ -44,6 +46,7 @@ export default function App() {
           connected={connected}
           onConnect={handleConnect}
           onStop={handleStop}
+          onUpdateKeywords={updateKeywords}
           videoRef={videoRef}
         />
         <VideoPlayer
@@ -56,7 +59,7 @@ export default function App() {
         <TranscriptBox transcripts={transcripts} interimText={interimText} />
       </div>
 
-      <AlertsSection alerts={alerts} />
+      <AlertsSection alerts={alerts} onAlertClick={seekTo} />
     </>
   );
 }

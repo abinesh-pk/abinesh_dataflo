@@ -1,12 +1,15 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
-import { fmtTs } from '../utils/helpers';
+import { useState, useRef, useCallback, useEffect } from "react";
+import { fmtTs } from "../utils/helpers";
 
 export default function useTranscription(videoRef) {
   const [transcripts, setTranscripts] = useState([]);
   const [interimText, setInterimText] = useState(null);
   const [alerts, setAlerts] = useState([]);
   const [alertCount, setAlertCount] = useState(0);
-  const [status, setStatus] = useState({ text: 'Not connected', color: '#555' });
+  const [status, setStatus] = useState({
+    text: "Not connected",
+    color: "#555",
+  });
   const [connected, setConnected] = useState(false);
 
   const wsRef = useRef(null);
@@ -57,7 +60,10 @@ export default function useTranscription(videoRef) {
         setInterimText(lastInterim);
       }
 
-      while (alertQueueRef.current.length > 0 && alertQueueRef.current[0].showAt <= ct) {
+      while (
+        alertQueueRef.current.length > 0 &&
+        alertQueueRef.current[0].showAt <= ct
+      ) {
         const item = alertQueueRef.current.shift();
         setAlerts((prev) => [item, ...prev]);
         setAlertCount((prev) => prev + 1);
@@ -79,106 +85,123 @@ export default function useTranscription(videoRef) {
     }
   }, []);
 
-  const connect = useCallback((source, keywords, isLiveStream) => {
-    setTranscripts([]);
-    setInterimText(null);
-    setAlerts([]);
-    setAlertCount(0);
-    setStatus({ text: 'Not connected', color: '#555' });
-    startedRef.current = false;
-    pipelineActiveRef.current = false;
-    isLiveStreamRef.current = isLiveStream;
-    clearQueues();
-    stopSyncTimer();
-    closeWs();
-
-    const ws = new WebSocket('ws://' + location.host + '/ws');
-    wsRef.current = ws;
-
-    ws.addEventListener('open', () => {
-      if (wsRef.current !== ws) return;
-      send({ action: 'init', source, keywords });
-      setStatus({ text: 'Ready \u2014 play the video', color: '#4caf50' });
-      setConnected(true);
-    });
-
-    ws.addEventListener('message', (e) => {
-      if (wsRef.current !== ws) return;
-      const msg = JSON.parse(e.data);
-
-      if (msg.type === 'transcript') {
-        const ts = msg.timestamp || fmtTs(msg.start);
-
-        if (isLiveStreamRef.current) {
-          if (msg.is_final) {
-            setInterimText(null);
-            setTranscripts((prev) => [...prev, { text: msg.text, timestamp: ts }]);
-          } else {
-            setInterimText({ text: msg.text, timestamp: ts });
-          }
-        } else {
-          transcriptQueueRef.current.push({
-            text: msg.text,
-            timestamp: ts,
-            start: msg.start,
-            is_final: msg.is_final,
-          });
-        }
-      }
-
-      if (msg.type === 'alert') {
-        if (isLiveStreamRef.current) {
-          setAlerts((prev) => [msg, ...prev]);
-          setAlertCount((prev) => prev + 1);
-        } else {
-          alertQueueRef.current.push({
-            keyword: msg.keyword,
-            timestamp: msg.timestamp,
-            start: msg.start,
-            context: msg.context,
-            match_type: msg.match_type,
-            showAt: msg.start,
-          });
-        }
-      }
-
-      if (msg.type === 'status') {
-        if (msg.status === 'running')  setStatus({ text: 'Transcribing...', color: '#4caf50' });
-        if (msg.status === 'paused')   setStatus({ text: 'Paused', color: '#ff9800' });
-        if (msg.status === 'stopped')  setStatus({ text: 'Stopped', color: '#999' });
-        if (msg.status === 'finished') {
-          if (isLiveStreamRef.current) {
-            setStatus({ text: 'Finished', color: '#999' });
-            pipelineActiveRef.current = false;
-          } else {
-            setStatus({ text: 'Processing complete \u2014 play to see transcript', color: '#4caf50' });
-          }
-        }
-        if (msg.status === 'error') setStatus({ text: 'Error', color: '#d32f2f' });
-        if (msg.status === 'ready') {
-          if (isLiveStreamRef.current && !startedRef.current) {
-            send({ action: 'start' });
-            startedRef.current = true;
-            pipelineActiveRef.current = true;
-          } else {
-            setStatus({ text: 'Ready \u2014 play the video', color: '#4caf50' });
-          }
-        }
-      }
-    });
-
-    ws.addEventListener('close', () => {
-      if (wsRef.current !== ws) return;
-      wsRef.current = null;
-      setStatus({ text: 'Disconnected', color: '#999' });
-      setConnected(false);
+  const connect = useCallback(
+    (source, keywords, isLiveStream) => {
+      setTranscripts([]);
+      setInterimText(null);
+      setAlerts([]);
+      setAlertCount(0);
+      setStatus({ text: "Not connected", color: "#555" });
+      startedRef.current = false;
       pipelineActiveRef.current = false;
+      isLiveStreamRef.current = isLiveStream;
+      clearQueues();
       stopSyncTimer();
-    });
-  }, [send, clearQueues, stopSyncTimer, closeWs]);
+      closeWs();
+
+      const ws = new WebSocket("ws://" + location.host + "/ws");
+      wsRef.current = ws;
+
+      ws.addEventListener("open", () => {
+        if (wsRef.current !== ws) return;
+        send({ action: "init", source, keywords });
+        setStatus({ text: "Ready \u2014 play the video", color: "#4caf50" });
+        setConnected(true);
+      });
+
+      ws.addEventListener("message", (e) => {
+        if (wsRef.current !== ws) return;
+        const msg = JSON.parse(e.data);
+
+        if (msg.type === "transcript") {
+          const ts = msg.timestamp || fmtTs(msg.start);
+
+          if (isLiveStreamRef.current) {
+            if (msg.is_final) {
+              setInterimText(null);
+              setTranscripts((prev) => [
+                ...prev,
+                { text: msg.text, timestamp: ts },
+              ]);
+            } else {
+              setInterimText({ text: msg.text, timestamp: ts });
+            }
+          } else {
+            transcriptQueueRef.current.push({
+              text: msg.text,
+              timestamp: ts,
+              start: msg.start,
+              is_final: msg.is_final,
+            });
+          }
+        }
+
+        if (msg.type === "alert") {
+          if (isLiveStreamRef.current) {
+            setAlerts((prev) => [msg, ...prev]);
+            setAlertCount((prev) => prev + 1);
+          } else {
+            alertQueueRef.current.push({
+              keyword: msg.keyword,
+              timestamp: msg.timestamp,
+              start: msg.start,
+              context: msg.context,
+              match_type: msg.match_type,
+              showAt: msg.start,
+            });
+            alertQueueRef.current.sort((a, b) => a.showAt - b.showAt);
+          }
+        }
+
+        if (msg.type === "status") {
+          if (msg.status === "running")
+            setStatus({ text: "Transcribing...", color: "#4caf50" });
+          if (msg.status === "paused")
+            setStatus({ text: "Paused", color: "#ff9800" });
+          if (msg.status === "stopped")
+            setStatus({ text: "Stopped", color: "#999" });
+          if (msg.status === "finished") {
+            if (isLiveStreamRef.current) {
+              setStatus({ text: "Finished", color: "#999" });
+              pipelineActiveRef.current = false;
+            } else {
+              setStatus({
+                text: "Processing complete \u2014 play to see transcript",
+                color: "#4caf50",
+              });
+            }
+          }
+          if (msg.status === "error")
+            setStatus({ text: "Error", color: "#d32f2f" });
+          if (msg.status === "ready") {
+            if (isLiveStreamRef.current && !startedRef.current) {
+              send({ action: "start" });
+              startedRef.current = true;
+              pipelineActiveRef.current = true;
+            } else {
+              setStatus({
+                text: "Ready \u2014 play the video",
+                color: "#4caf50",
+              });
+            }
+          }
+        }
+      });
+
+      ws.addEventListener("close", () => {
+        if (wsRef.current !== ws) return;
+        wsRef.current = null;
+        setStatus({ text: "Disconnected", color: "#999" });
+        setConnected(false);
+        pipelineActiveRef.current = false;
+        stopSyncTimer();
+      });
+    },
+    [send, clearQueues, stopSyncTimer, closeWs],
+  );
 
   const stop = useCallback(() => {
-    send({ action: 'stop' });
+    send({ action: "stop" });
     const vid = videoRef.current;
     if (vid) vid.pause();
     startedRef.current = false;
@@ -193,11 +216,11 @@ export default function useTranscription(videoRef) {
     const ws = wsRef.current;
     if (!ws || ws.readyState !== WebSocket.OPEN) return;
     if (!startedRef.current) {
-      send({ action: 'start' });
+      send({ action: "start" });
       startedRef.current = true;
       pipelineActiveRef.current = true;
     } else if (isLiveStreamRef.current && pipelineActiveRef.current) {
-      send({ action: 'resume' });
+      send({ action: "resume" });
     }
     if (!isLiveStreamRef.current) startSyncTimer();
   }, [send, startSyncTimer]);
@@ -205,8 +228,26 @@ export default function useTranscription(videoRef) {
   const onPause = useCallback(() => {
     const ws = wsRef.current;
     if (!ws || ws.readyState !== WebSocket.OPEN) return;
-    if (isLiveStreamRef.current && pipelineActiveRef.current) send({ action: 'pause' });
+    if (isLiveStreamRef.current && pipelineActiveRef.current)
+      send({ action: "pause" });
   }, [send]);
+
+  const updateKeywords = useCallback(
+    (kwArray) => {
+      send({ action: "update_keywords", keywords: kwArray });
+    },
+    [send],
+  );
+
+  const seekTo = useCallback(
+    (time) => {
+      const vid = videoRef.current;
+      if (!vid) return;
+      vid.currentTime = time;
+      vid.play().catch(() => {});
+    },
+    [videoRef],
+  );
 
   const onSeeked = useCallback(() => {
     if (isLiveStreamRef.current) return;
@@ -239,5 +280,7 @@ export default function useTranscription(videoRef) {
     onPlay,
     onPause,
     onSeeked,
+    updateKeywords,
+    seekTo,
   };
 }

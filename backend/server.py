@@ -106,6 +106,7 @@ async def websocket_endpoint(ws: WebSocket):
 
     source: str | None = None
     keywords: list[str] = []
+    transcript_history: list[dict] = []
     pause_event = asyncio.Event()
     task: asyncio.Task | None = None
     transcriber: DeepgramTranscriber | None = None
@@ -130,6 +131,7 @@ async def websocket_endpoint(ws: WebSocket):
         })
 
         if is_final:
+            transcript_history.append({"text": text, "start": start_time})
             for m in check_keywords(text, keywords):
                 await _send({
                     "type": "alert",
@@ -173,6 +175,7 @@ async def websocket_endpoint(ws: WebSocket):
 
                 source = msg.get("source", "")
                 keywords = [k.strip() for k in msg.get("keywords", []) if k.strip()]
+                transcript_history.clear()
                 pause_event.clear()
 
                 transcriber = DeepgramTranscriber(
@@ -205,6 +208,29 @@ async def websocket_endpoint(ws: WebSocket):
             elif action == "resume":
                 pause_event.clear()
                 await _send({"type": "status", "status": "running"})
+
+            elif action == "update_keywords":
+                old_kw_set = {k.lower() for k in keywords}
+                new_kw_list = [k.strip() for k in msg.get("keywords", []) if k.strip()]
+                keywords[:] = new_kw_list
+                print(f"[server] Keywords updated mid-stream: {keywords}")
+
+                # Find keywords that are genuinely new (not in the old set)
+                added = [k for k in new_kw_list if k.lower() not in old_kw_set]
+                if added and transcript_history:
+                    print(f"[server] Re-scanning {len(transcript_history)} past transcripts for new keywords: {added}")
+                    for entry in transcript_history:
+                        for m in check_keywords(entry["text"], added):
+                            await _send({
+                                "type": "alert",
+                                "keyword": m["keyword"],
+                                "timestamp": _format_timestamp(entry["start"]),
+                                "start": entry["start"],
+                                "context": entry["text"],
+                                "match_type": m["match_type"],
+                            })
+
+                await _send({"type": "keywords_updated", "keywords": keywords})
 
             elif action == "stop":
                 if task and not task.done():

@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 
-export default function SourcePanel({ status, connected, onConnect, onStop, videoRef }) {
+export default function SourcePanel({ status, connected, onConnect, onStop, onUpdateKeywords, videoRef }) {
   const [srcType, setSrcType] = useState('local');
   const [pathValue, setPathValue] = useState('');
   const [urlValue, setUrlValue] = useState('');
@@ -32,11 +32,15 @@ export default function SourcePanel({ status, connected, onConnect, onStop, vide
     [videoRef],
   );
 
-  const handleConnect = useCallback(() => {
-    const kw = keywords
+  const parseKeywords = useCallback(() => {
+    return keywords
       .split(',')
       .map((k) => k.trim())
       .filter(Boolean);
+  }, [keywords]);
+
+  const handleConnect = useCallback(() => {
+    const kw = parseKeywords();
 
     let source;
     let isLiveStream;
@@ -55,7 +59,12 @@ export default function SourcePanel({ status, connected, onConnect, onStop, vide
     }
 
     onConnect(source, kw, isLiveStream);
-  }, [srcType, pathValue, urlValue, keywords, onConnect, videoRef]);
+  }, [srcType, pathValue, urlValue, parseKeywords, onConnect, videoRef]);
+
+  const handleUpdateKeywords = useCallback(() => {
+    const kw = parseKeywords();
+    onUpdateKeywords(kw);
+  }, [parseKeywords, onUpdateKeywords]);
 
   return (
     <div className="panel">
@@ -110,12 +119,27 @@ export default function SourcePanel({ status, connected, onConnect, onStop, vide
       )}
 
       <label>Keywords</label>
-      <input
-        type="text"
-        value={keywords}
-        onChange={(e) => setKeywords(e.target.value)}
-        placeholder="fire, alert, emergency"
-      />
+      <div style={{ display: 'flex', gap: '6px' }}>
+        <input
+          type="text"
+          value={keywords}
+          onChange={(e) => setKeywords(e.target.value)}
+          placeholder="fire, alert, emergency"
+          style={{ flex: 1 }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && connected) handleUpdateKeywords();
+          }}
+        />
+        {connected && (
+          <button
+            className="btn btn-primary"
+            onClick={handleUpdateKeywords}
+            style={{ padding: '8px 12px', whiteSpace: 'nowrap', fontSize: '.8rem' }}
+          >
+            Update
+          </button>
+        )}
+      </div>
 
       <button className="btn btn-primary" disabled={connected} onClick={handleConnect}>
         Connect
