@@ -43,9 +43,38 @@ class DeepgramTranscriber:
         self._ffmpeg_process: subprocess.Popen | None = None
         self._ydl_process: subprocess.Popen | None = None
         self._audio_done = asyncio.Event()
+        self._pre_keepalive_task: asyncio.Task | None = None
+
+    async def pre_connect(self):
+        """Pre-establish Deepgram WS so audio can flow instantly when run() is called."""
+        await self._connect_deepgram()
+        self._pre_keepalive_task = asyncio.create_task(self._pre_keepalive())
+
+    async def _pre_keepalive(self):
+        """Send KeepAlive until run() takes over or the connection drops."""
+        try:
+            while True:
+                await asyncio.sleep(5)
+                if _ws_is_open(self._ws):
+                    await self._ws.send(KEEPALIVE_MSG)
+                else:
+                    break
+        except asyncio.CancelledError:
+            pass
+
+    async def close(self):
+        """Clean up pre-connection resources if run() was never called."""
+        if self._pre_keepalive_task:
+            self._pre_keepalive_task.cancel()
+            self._pre_keepalive_task = None
+        await self._close_ws()
 
     async def run(self):
         """Start FFmpeg once, then stream to Deepgram with auto-reconnect on WS drops."""
+        if self._pre_keepalive_task:
+            self._pre_keepalive_task.cancel()
+            self._pre_keepalive_task = None
+
         self._ffmpeg_process, self._ydl_process = await start_ffmpeg(self.source)
         try:
             await self._stream_with_reconnect()
@@ -56,7 +85,8 @@ class DeepgramTranscriber:
         attempt = 0
         while attempt < MAX_RECONNECT_ATTEMPTS:
             try:
-                await self._connect_deepgram()
+                if not _ws_is_open(self._ws):
+                    await self._connect_deepgram()
                 self._audio_done.clear()
                 await asyncio.gather(
                     self._send_audio(),
@@ -175,7 +205,7 @@ class DeepgramTranscriber:
         """Send KeepAlive messages so Deepgram doesn't time out the connection."""
         while not self._audio_done.is_set():
             await asyncio.sleep(5)
-            if self._pause_event and self._pause_event.is_set() and _ws_is_open(self._ws):
+            if _ws_is_open(self._ws):
                 try:
                     await self._ws.send(KEEPALIVE_MSG)
                 except Exception:

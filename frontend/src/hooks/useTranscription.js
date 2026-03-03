@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { fmtTs } from '../utils/helpers';
 
 export default function useTranscription(videoRef) {
@@ -13,6 +13,7 @@ export default function useTranscription(videoRef) {
   const startedRef = useRef(false);
   const pipelineActiveRef = useRef(false);
   const isLiveStreamRef = useRef(false);
+  const transcriptQueueRef = useRef([]);
   const alertQueueRef = useRef([]);
   const syncTimerRef = useRef(null);
 
@@ -22,6 +23,7 @@ export default function useTranscription(videoRef) {
   }, []);
 
   const clearQueues = useCallback(() => {
+    transcriptQueueRef.current = [];
     alertQueueRef.current = [];
   }, []);
 
@@ -31,6 +33,29 @@ export default function useTranscription(videoRef) {
       const vid = videoRef.current;
       if (!vid || vid.paused) return;
       const ct = vid.currentTime;
+
+      const tq = transcriptQueueRef.current;
+      let lastInterim = null;
+      const finalsToAdd = [];
+      let idx = 0;
+      while (idx < tq.length && tq[idx].start <= ct) {
+        const item = tq[idx];
+        if (item.is_final) {
+          finalsToAdd.push({ text: item.text, timestamp: item.timestamp });
+          lastInterim = null;
+        } else {
+          lastInterim = { text: item.text, timestamp: item.timestamp };
+        }
+        idx++;
+      }
+      if (idx > 0) tq.splice(0, idx);
+
+      if (finalsToAdd.length > 0) {
+        setTranscripts((prev) => [...prev, ...finalsToAdd]);
+        setInterimText(lastInterim);
+      } else if (lastInterim) {
+        setInterimText(lastInterim);
+      }
 
       while (alertQueueRef.current.length > 0 && alertQueueRef.current[0].showAt <= ct) {
         const item = alertQueueRef.current.shift();
@@ -47,6 +72,13 @@ export default function useTranscription(videoRef) {
     }
   }, []);
 
+  const closeWs = useCallback(() => {
+    if (wsRef.current) {
+      wsRef.current.close();
+      wsRef.current = null;
+    }
+  }, []);
+
   const connect = useCallback((source, keywords, isLiveStream) => {
     setTranscripts([]);
     setInterimText(null);
@@ -58,29 +90,39 @@ export default function useTranscription(videoRef) {
     isLiveStreamRef.current = isLiveStream;
     clearQueues();
     stopSyncTimer();
-
-    if (wsRef.current) wsRef.current.close();
+    closeWs();
 
     const ws = new WebSocket('ws://' + location.host + '/ws');
     wsRef.current = ws;
 
     ws.addEventListener('open', () => {
+      if (wsRef.current !== ws) return;
       send({ action: 'init', source, keywords });
       setStatus({ text: 'Ready \u2014 play the video', color: '#4caf50' });
       setConnected(true);
     });
 
     ws.addEventListener('message', (e) => {
+      if (wsRef.current !== ws) return;
       const msg = JSON.parse(e.data);
 
       if (msg.type === 'transcript') {
         const ts = msg.timestamp || fmtTs(msg.start);
 
-        if (msg.is_final) {
-          setInterimText(null);
-          setTranscripts((prev) => [...prev, { text: msg.text, timestamp: ts }]);
+        if (isLiveStreamRef.current) {
+          if (msg.is_final) {
+            setInterimText(null);
+            setTranscripts((prev) => [...prev, { text: msg.text, timestamp: ts }]);
+          } else {
+            setInterimText({ text: msg.text, timestamp: ts });
+          }
         } else {
-          setInterimText({ text: msg.text, timestamp: ts });
+          transcriptQueueRef.current.push({
+            text: msg.text,
+            timestamp: ts,
+            start: msg.start,
+            is_final: msg.is_final,
+          });
         }
       }
 
@@ -126,12 +168,14 @@ export default function useTranscription(videoRef) {
     });
 
     ws.addEventListener('close', () => {
+      if (wsRef.current !== ws) return;
+      wsRef.current = null;
       setStatus({ text: 'Disconnected', color: '#999' });
       setConnected(false);
       pipelineActiveRef.current = false;
       stopSyncTimer();
     });
-  }, [send, clearQueues, stopSyncTimer]);
+  }, [send, clearQueues, stopSyncTimer, closeWs]);
 
   const stop = useCallback(() => {
     send({ action: 'stop' });
@@ -140,9 +184,10 @@ export default function useTranscription(videoRef) {
     startedRef.current = false;
     pipelineActiveRef.current = false;
     setConnected(false);
+    closeWs();
     clearQueues();
     stopSyncTimer();
-  }, [send, videoRef, clearQueues, stopSyncTimer]);
+  }, [send, videoRef, clearQueues, stopSyncTimer, closeWs]);
 
   const onPlay = useCallback(() => {
     const ws = wsRef.current;
@@ -165,9 +210,22 @@ export default function useTranscription(videoRef) {
 
   const onSeeked = useCallback(() => {
     if (isLiveStreamRef.current) return;
-    clearQueues();
+    alertQueueRef.current = [];
     setInterimText(null);
-  }, [clearQueues]);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (wsRef.current) {
+        wsRef.current.close();
+        wsRef.current = null;
+      }
+      if (syncTimerRef.current) {
+        clearInterval(syncTimerRef.current);
+        syncTimerRef.current = null;
+      }
+    };
+  }, []);
 
   return {
     transcripts,

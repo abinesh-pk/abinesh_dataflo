@@ -108,6 +108,7 @@ async def websocket_endpoint(ws: WebSocket):
     keywords: list[str] = []
     pause_event = asyncio.Event()
     task: asyncio.Task | None = None
+    transcriber: DeepgramTranscriber | None = None
 
     async def _send(msg: dict):
         try:
@@ -141,11 +142,6 @@ async def websocket_endpoint(ws: WebSocket):
 
     async def run_pipeline():
         try:
-            transcriber = DeepgramTranscriber(
-                source=source,
-                on_transcript=on_transcript,
-                pause_event=pause_event,
-            )
             await transcriber.run()
             await _send({"type": "status", "status": "finished"})
         except asyncio.CancelledError:
@@ -153,6 +149,12 @@ async def websocket_endpoint(ws: WebSocket):
         except Exception:
             traceback.print_exc()
             await _send({"type": "status", "status": "error"})
+
+    async def _cleanup_transcriber():
+        nonlocal transcriber
+        if transcriber:
+            await transcriber.close()
+            transcriber = None
 
     try:
         while True:
@@ -167,14 +169,27 @@ async def websocket_endpoint(ws: WebSocket):
                         await task
                     except (asyncio.CancelledError, Exception):
                         pass
+                await _cleanup_transcriber()
 
                 source = msg.get("source", "")
                 keywords = [k.strip() for k in msg.get("keywords", []) if k.strip()]
                 pause_event.clear()
+
+                transcriber = DeepgramTranscriber(
+                    source=source,
+                    on_transcript=on_transcript,
+                    pause_event=pause_event,
+                )
+                try:
+                    await transcriber.pre_connect()
+                    print("[server] Deepgram pre-connected — ready for instant start.")
+                except Exception as e:
+                    print(f"[server] Deepgram pre-connect failed ({e}), will retry on start.")
+
                 await _send({"type": "status", "status": "ready"})
 
             elif action == "start":
-                if not source:
+                if not source or not transcriber:
                     await _send({"type": "status", "status": "error", "detail": "No source set"})
                     continue
                 if task and not task.done():
@@ -200,6 +215,7 @@ async def websocket_endpoint(ws: WebSocket):
                         pass
                     task = None
                 pause_event.clear()
+                await _cleanup_transcriber()
                 await _send({"type": "status", "status": "stopped"})
 
     except WebSocketDisconnect:
@@ -211,6 +227,8 @@ async def websocket_endpoint(ws: WebSocket):
                 await task
             except (asyncio.CancelledError, Exception):
                 pass
+        if transcriber:
+            await transcriber.close()
 
 
 if os.path.isdir(os.path.join(FRONTEND_DIST, "assets")):

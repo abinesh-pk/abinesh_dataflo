@@ -55,8 +55,9 @@ def _drain_stderr(process: subprocess.Popen, label: str = "ffmpeg"):
 
 
 def _start_ydl_pipe(source: str) -> subprocess.Popen:
-    """Launch yt-dlp streaming video data to stdout so it manages token refresh internally."""
-    cmd = ["yt-dlp", "-f", "best", "-o", "-", source]
+    """Launch yt-dlp streaming audio to stdout so it manages token refresh internally.
+    Uses bestaudio to avoid video muxer crashes on HLS discontinuities (YouTube ad breaks)."""
+    cmd = ["yt-dlp", "-f", "bestaudio/best", "--no-part", "-o", "-", source]
     process = subprocess.Popen(
         cmd,
         stdout=subprocess.PIPE,
