@@ -15,6 +15,7 @@ if sys.platform == "win32":
 
 import json
 import os
+import queue
 import threading
 import uuid
 import traceback
@@ -28,7 +29,10 @@ from pydantic import BaseModel
 from transcriber import DeepgramTranscriber
 from keyword_monitor import check_keywords
 from alert_manager import _format_timestamp
+from audio_extractor import start_ffmpeg_from_pipe
 from config import GROQ_API_KEY
+
+_pipe_sessions: dict[str, dict] = {}
 
 BASE_DIR = os.path.dirname(__file__)
 PROJECT_ROOT = os.path.abspath(os.path.join(BASE_DIR, ".."))
@@ -79,36 +83,15 @@ async def serve_video(filename: str):
     return FileResponse(path, media_type="video/mp4")
 
 
-@app.get("/browse")
-async def browse_file():
-    """Open a native file picker on the server machine and return the selected path."""
-    result = {"path": ""}
-
-    def _pick():
-        import tkinter as tk
-        from tkinter import filedialog
-        root = tk.Tk()
-        root.withdraw()
-        root.attributes("-topmost", True)
-        path = filedialog.askopenfilename(
-            title="Select video file",
-            filetypes=[("Video files", "*.mp4 *.mkv *.avi *.mov *.webm *.flv"), ("All files", "*.*")],
-        )
-        root.destroy()
-        result["path"] = path or ""
-
-    t = threading.Thread(target=_pick)
-    t.start()
-    t.join()
-    return JSONResponse(result)
-
-
-@app.get("/local-video")
-async def serve_local_video(path: str):
-    """Serve a local file so the browser <video> element can load it."""
-    if not os.path.isfile(path):
-        return HTMLResponse("Not found", status_code=404)
-    return FileResponse(path)
+@app.post("/upload-stream")
+async def upload_stream(file: UploadFile = File(...)):
+    """Read the uploaded file into memory and return a session ID.
+    The actual processing happens during the WebSocket 'init' phase."""
+    session_id = uuid.uuid4().hex
+    content = await file.read()
+    _pipe_sessions[session_id] = {"data": content}
+    print(f"[server] Upload received, {len(content)} bytes, session {session_id}")
+    return {"session_id": session_id}
 
 
 @app.websocket("/ws")
@@ -193,10 +176,19 @@ async def websocket_endpoint(ws: WebSocket):
                 transcript_history.clear()
                 pause_event.clear()
 
+                pipe_data = None
+                session_id = msg.get("session_id")
+                if source == "PIPE" and session_id:
+                    session = _pipe_sessions.pop(session_id, None)
+                    if session and "data" in session:
+                        pipe_data = session["data"]
+                        print(f"[server] Found buffered data for session {session_id}")
+
                 transcriber = DeepgramTranscriber(
                     source=source,
                     on_transcript=on_transcript,
                     pause_event=pause_event,
+                    pipe_data=pipe_data,
                 )
                 try:
                     await transcriber.pre_connect()

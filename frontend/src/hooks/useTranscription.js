@@ -95,7 +95,7 @@ export default function useTranscription(videoRef) {
   }, []);
 
   const connect = useCallback(
-    (source, keywords, isLiveStream) => {
+    (source, keywords, isLiveStream, sessionId) => {
       setTranscripts([]);
       setInterimText(null);
       setAlerts([]);
@@ -113,7 +113,9 @@ export default function useTranscription(videoRef) {
 
       ws.addEventListener("open", () => {
         if (wsRef.current !== ws) return;
-        send({ action: "init", source, keywords });
+        const initMsg = { action: "init", source, keywords };
+        if (sessionId) initMsg.session_id = sessionId;
+        send(initMsg);
         setStatus({ text: "Ready \u2014 play the video", color: "#4caf50" });
         setConnected(true);
       });

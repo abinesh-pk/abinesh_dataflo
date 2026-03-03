@@ -27,9 +27,12 @@ export default function App() {
   } = useTranscription(videoRef);
 
   const handleConnect = useCallback(
-    (source, kw, isLiveStream) => {
+    (source, kw, isLiveStream, sessionId, file) => {
       setLiveSource(isLiveStream ? source : null);
-      connect(source, kw, isLiveStream);
+      if (file && videoRef.current) {
+        videoRef.current.src = URL.createObjectURL(file);
+      }
+      connect(source, kw, isLiveStream, sessionId);
     },
     [connect],
   );
@@ -50,7 +53,6 @@ export default function App() {
           onConnect={handleConnect}
           onStop={handleStop}
           onUpdateKeywords={updateKeywords}
-          videoRef={videoRef}
         />
         <VideoPlayer
           ref={videoRef}

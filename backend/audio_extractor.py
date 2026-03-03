@@ -69,6 +69,34 @@ def _start_ydl_pipe(source: str) -> subprocess.Popen:
     return process
 
 
+def start_ffmpeg_from_pipe() -> subprocess.Popen:
+    """Launch FFmpeg reading from stdin (pipe:0) for uploaded file streaming.
+    The caller writes file bytes to process.stdin; audio is read from stdout."""
+    cmd = [
+        "ffmpeg",
+        "-fflags", "nobuffer",
+        "-flags", "low_delay",
+        "-i", "pipe:0",
+        "-f", "s16le",
+        "-ar", str(SAMPLE_RATE),
+        "-ac", str(CHANNELS),
+        "-loglevel", "warning",
+        "pipe:1",
+    ]
+    process = subprocess.Popen(
+        cmd,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        bufsize=256 * 1024,
+    )
+    if process.poll() is not None:
+        stderr_out = process.stderr.read()
+        raise RuntimeError(f"FFmpeg (pipe) failed to start: {stderr_out.decode()}")
+    threading.Thread(target=_drain_stderr, args=(process, "ffmpeg-pipe"), daemon=True).start()
+    return process
+
+
 async def start_ffmpeg(source: str) -> tuple[subprocess.Popen, subprocess.Popen | None]:
     """
     Launch FFmpeg using subprocess.Popen with a large buffer.

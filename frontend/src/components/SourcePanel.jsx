@@ -1,5 +1,4 @@
-import { useState, useCallback } from "react";
-import { API_BASE } from "../config.js";
+import { useState, useCallback, useRef } from "react";
 
 export default function SourcePanel({
   status,
@@ -7,39 +6,45 @@ export default function SourcePanel({
   onConnect,
   onStop,
   onUpdateKeywords,
-  videoRef,
 }) {
   const [srcType, setSrcType] = useState("local");
-  const [pathValue, setPathValue] = useState("");
+  const [selectedFile, setSelectedFile] = useState(null);
   const [urlValue, setUrlValue] = useState("");
   const [keywords, setKeywords] = useState("");
+  const [uploadProgress, setUploadProgress] = useState(null);
+  const [uploadError, setUploadError] = useState(null);
+  const fileInputRef = useRef(null);
 
-  const handleBrowse = useCallback(async () => {
-    try {
-      const res = await fetch(`${API_BASE}/browse`);
-      const data = await res.json();
-      if (data.path) {
-        setPathValue(data.path);
-        if (videoRef.current) {
-          videoRef.current.src =
-            `${API_BASE}/local-video?path=` + encodeURIComponent(data.path);
-        }
-      }
-    } catch {
-      /* browse failed */
-    }
-  }, [videoRef]);
+  const handleFileChange = useCallback((e) => {
+    setSelectedFile(e.target.files[0] || null);
+  }, []);
 
-  const handlePathChange = useCallback(
-    (e) => {
-      const p = e.target.value;
-      setPathValue(p);
-      if (p.trim() && videoRef.current) {
-        videoRef.current.src =
-          `${API_BASE}/local-video?path=` + encodeURIComponent(p.trim());
-      }
-    },
-    [videoRef],
+  const uploadFile = useCallback(
+    (file) =>
+      new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.upload.addEventListener("progress", (e) => {
+          if (e.lengthComputable)
+            setUploadProgress(Math.round((e.loaded / e.total) * 100));
+        });
+        xhr.addEventListener("load", () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            try {
+              resolve(JSON.parse(xhr.responseText));
+            } catch {
+              reject(new Error("Invalid server response"));
+            }
+          } else {
+            reject(new Error(`Upload failed with status ${xhr.status}`));
+          }
+        });
+        xhr.addEventListener("error", () => reject(new Error("Upload failed")));
+        xhr.open("POST", "/upload-stream");
+        const fd = new FormData();
+        fd.append("file", file);
+        xhr.send(fd);
+      }),
+    [],
   );
 
   const parseKeywords = useCallback(() => {
@@ -49,33 +54,34 @@ export default function SourcePanel({
       .filter(Boolean);
   }, [keywords]);
 
-  const handleConnect = useCallback(() => {
+  const handleConnect = useCallback(async () => {
     const kw = parseKeywords();
-
-    let source;
-    let isLiveStream;
+    setUploadError(null);
 
     if (srcType === "local") {
-      isLiveStream = false;
-      source = pathValue.trim();
-      if (!source) return;
-      if (videoRef.current) {
-        videoRef.current.src =
-          `${API_BASE}/local-video?path=` + encodeURIComponent(source);
+      if (!selectedFile) return;
+      setUploadProgress(0);
+      try {
+        const data = await uploadFile(selectedFile);
+        setUploadProgress(null);
+        onConnect("PIPE", kw, false, data.session_id, selectedFile);
+      } catch (err) {
+        setUploadProgress(null);
+        setUploadError(err.message || "Upload failed");
       }
     } else {
-      isLiveStream = true;
-      source = urlValue.trim();
+      const source = urlValue.trim();
       if (!source) return;
+      onConnect(source, kw, true, null, null);
     }
-
-    onConnect(source, kw, isLiveStream);
-  }, [srcType, pathValue, urlValue, parseKeywords, onConnect, videoRef]);
+  }, [srcType, selectedFile, urlValue, parseKeywords, onConnect, uploadFile]);
 
   const handleUpdateKeywords = useCallback(() => {
     const kw = parseKeywords();
     onUpdateKeywords(kw);
   }, [parseKeywords, onUpdateKeywords]);
+
+  const uploading = uploadProgress !== null;
 
   return (
     <div className="panel">
@@ -89,7 +95,7 @@ export default function SourcePanel({
             checked={srcType === "local"}
             onChange={() => setSrcType("local")}
           />{" "}
-          Local File
+          Upload File
         </label>
         <label>
           <input
@@ -104,21 +110,78 @@ export default function SourcePanel({
       </div>
 
       {srcType === "local" ? (
-        <div style={{ display: "flex", gap: "6px" }}>
-          <input
-            type="text"
-            value={pathValue}
-            onChange={handlePathChange}
-            placeholder="C:/videos/input.mp4"
-            style={{ flex: 1 }}
-          />
-          <button
-            className="btn btn-primary"
-            onClick={handleBrowse}
-            style={{ padding: "8px 12px", whiteSpace: "nowrap" }}
-          >
-            Browse
-          </button>
+        <div>
+          <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+            <button
+              className="btn btn-primary"
+              onClick={() => fileInputRef.current?.click()}
+              style={{ padding: "8px 12px", whiteSpace: "nowrap" }}
+              disabled={uploading}
+            >
+              Choose File
+            </button>
+            <span
+              style={{
+                fontSize: ".82rem",
+                color: "#aaa",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                flex: 1,
+              }}
+            >
+              {selectedFile ? selectedFile.name : "No file selected"}
+            </span>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="video/*,audio/*"
+              onChange={handleFileChange}
+              style={{ display: "none" }}
+            />
+          </div>
+          {uploading && (
+            <div style={{ marginTop: "6px" }}>
+              <div
+                style={{
+                  background: "#333",
+                  borderRadius: "4px",
+                  height: "6px",
+                  overflow: "hidden",
+                }}
+              >
+                <div
+                  style={{
+                    background: "#2979ff",
+                    height: "100%",
+                    width: `${uploadProgress}%`,
+                    transition: "width 0.2s",
+                  }}
+                />
+              </div>
+              <div
+                style={{
+                  fontSize: ".78rem",
+                  color: "#aaa",
+                  textAlign: "center",
+                  marginTop: "2px",
+                }}
+              >
+                Uploading... {uploadProgress}%
+              </div>
+            </div>
+          )}
+          {uploadError && (
+            <div
+              style={{
+                fontSize: ".78rem",
+                color: "#ff5252",
+                marginTop: "4px",
+              }}
+            >
+              {uploadError}
+            </div>
+          )}
         </div>
       ) : (
         <input
@@ -158,10 +221,10 @@ export default function SourcePanel({
 
       <button
         className="btn btn-primary"
-        disabled={connected}
+        disabled={connected || uploading}
         onClick={handleConnect}
       >
-        Connect
+        {uploading ? "Uploading..." : "Connect"}
       </button>
       <button className="btn btn-danger" disabled={!connected} onClick={onStop}>
         Stop

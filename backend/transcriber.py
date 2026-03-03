@@ -1,6 +1,7 @@
 import asyncio
 import json
 import subprocess
+import threading
 from typing import Callable, Awaitable
 
 import websockets
@@ -14,7 +15,7 @@ from config import (
     MAX_RECONNECT_ATTEMPTS,
     RECONNECT_BASE_DELAY,
 )
-from audio_extractor import start_ffmpeg, read_audio_chunks
+from audio_extractor import start_ffmpeg, read_audio_chunks, start_ffmpeg_from_pipe
 
 KEEPALIVE_MSG = json.dumps({"type": "KeepAlive"})
 CLOSE_STREAM_MSG = json.dumps({"type": "CloseStream"})
@@ -34,13 +35,16 @@ class DeepgramTranscriber:
         on_transcript: Callable[[dict], Awaitable[None]],
         pause_event: asyncio.Event | None = None,
         speed_factor: float = BATCH_SPEED_FACTOR,
+        ffmpeg_process: subprocess.Popen | None = None,
+        pipe_data: bytes | None = None,
     ):
         self.source = source
         self.on_transcript = on_transcript
         self._pause_event = pause_event
         self._speed_factor = speed_factor
         self._ws = None
-        self._ffmpeg_process: subprocess.Popen | None = None
+        self._ffmpeg_process = ffmpeg_process
+        self._pipe_data = pipe_data
         self._ydl_process: subprocess.Popen | None = None
         self._audio_done = asyncio.Event()
         self._pre_keepalive_task: asyncio.Task | None = None
@@ -75,7 +79,25 @@ class DeepgramTranscriber:
             self._pre_keepalive_task.cancel()
             self._pre_keepalive_task = None
 
-        self._ffmpeg_process, self._ydl_process = await start_ffmpeg(self.source)
+        if not self._ffmpeg_process:
+            if self.source == "PIPE" and self._pipe_data is not None:
+                self._ffmpeg_process = start_ffmpeg_from_pipe()
+                data = self._pipe_data
+
+                def _feeder():
+                    try:
+                        self._ffmpeg_process.stdin.write(data)
+                        self._ffmpeg_process.stdin.close()
+                    except Exception:
+                        try:
+                            self._ffmpeg_process.stdin.close()
+                        except Exception:
+                            pass
+
+                threading.Thread(target=_feeder, daemon=True).start()
+                print("[transcriber] Started FFmpeg-pipe from buffered data.")
+            else:
+                self._ffmpeg_process, self._ydl_process = await start_ffmpeg(self.source)
         try:
             await self._stream_with_reconnect()
         finally:
