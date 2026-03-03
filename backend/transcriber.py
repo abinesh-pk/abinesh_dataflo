@@ -91,6 +91,7 @@ class DeepgramTranscriber:
     async def _send_audio(self):
         """Read PCM chunks from FFmpeg and forward them as binary WS frames."""
         chunks_sent = 0
+        ws_died = False
         try:
             async for chunk in read_audio_chunks(
                 self._ffmpeg_process,
@@ -102,12 +103,16 @@ class DeepgramTranscriber:
                     await self._ws.send(chunk)
                     chunks_sent += 1
                 else:
-                    print("[transcriber] WS closed while sending audio.")
+                    print(f"[transcriber] WS closed while sending audio ({chunks_sent} chunks sent).")
+                    ws_died = True
                     break
         except (websockets.ConnectionClosed, ConnectionError):
             raise
         except Exception as e:
             print(f"[transcriber] Send error: {e}")
+
+        if ws_died and self._ffmpeg_process and self._ffmpeg_process.poll() is None:
+            raise ConnectionError("Deepgram WebSocket closed while audio stream is still active")
 
         self._audio_done.set()
         print(f"[transcriber] Finished sending audio ({chunks_sent} chunks). Sending CloseStream.")

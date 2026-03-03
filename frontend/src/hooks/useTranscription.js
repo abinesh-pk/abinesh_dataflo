@@ -13,7 +13,6 @@ export default function useTranscription(videoRef) {
   const startedRef = useRef(false);
   const pipelineActiveRef = useRef(false);
   const isLiveStreamRef = useRef(false);
-  const transcriptQueueRef = useRef([]);
   const alertQueueRef = useRef([]);
   const syncTimerRef = useRef(null);
 
@@ -23,7 +22,6 @@ export default function useTranscription(videoRef) {
   }, []);
 
   const clearQueues = useCallback(() => {
-    transcriptQueueRef.current = [];
     alertQueueRef.current = [];
   }, []);
 
@@ -33,11 +31,6 @@ export default function useTranscription(videoRef) {
       const vid = videoRef.current;
       if (!vid || vid.paused) return;
       const ct = vid.currentTime;
-
-      while (transcriptQueueRef.current.length > 0 && transcriptQueueRef.current[0].showAt <= ct) {
-        const item = transcriptQueueRef.current.shift();
-        setTranscripts((prev) => [...prev, { text: item.text, timestamp: item.timestamp }]);
-      }
 
       while (alertQueueRef.current.length > 0 && alertQueueRef.current[0].showAt <= ct) {
         const item = alertQueueRef.current.shift();
@@ -81,27 +74,13 @@ export default function useTranscription(videoRef) {
       const msg = JSON.parse(e.data);
 
       if (msg.type === 'transcript') {
-        if (isLiveStreamRef.current) {
-          if (msg.is_final) {
-            setInterimText(null);
-            setTranscripts((prev) => [
-              ...prev,
-              { text: msg.text, timestamp: msg.timestamp || fmtTs(msg.start) },
-            ]);
-          } else {
-            setInterimText({
-              text: msg.text,
-              timestamp: msg.timestamp || fmtTs(msg.start),
-            });
-          }
+        const ts = msg.timestamp || fmtTs(msg.start);
+
+        if (msg.is_final) {
+          setInterimText(null);
+          setTranscripts((prev) => [...prev, { text: msg.text, timestamp: ts }]);
         } else {
-          if (msg.is_final) {
-            transcriptQueueRef.current.push({
-              text: msg.text,
-              showAt: msg.start,
-              timestamp: msg.timestamp || fmtTs(msg.start),
-            });
-          }
+          setInterimText({ text: msg.text, timestamp: ts });
         }
       }
 
@@ -187,6 +166,7 @@ export default function useTranscription(videoRef) {
   const onSeeked = useCallback(() => {
     if (isLiveStreamRef.current) return;
     clearQueues();
+    setInterimText(null);
   }, [clearQueues]);
 
   return {
