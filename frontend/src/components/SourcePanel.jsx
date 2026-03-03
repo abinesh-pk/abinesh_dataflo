@@ -52,9 +52,6 @@ export default function SourcePanel({ status, connected, onConnect, onStop, vide
       isLiveStream = true;
       source = urlValue.trim();
       if (!source) return;
-      if (videoRef.current) {
-        videoRef.current.src = source;
-      }
     }
 
     onConnect(source, kw, isLiveStream);

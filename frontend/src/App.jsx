@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useState, useCallback } from 'react';
 import './App.css';
 import Header from './components/Header';
 import SourcePanel from './components/SourcePanel';
@@ -9,6 +9,7 @@ import useTranscription from './hooks/useTranscription';
 
 export default function App() {
   const videoRef = useRef(null);
+  const [liveSource, setLiveSource] = useState(null);
   const {
     transcripts,
     interimText,
@@ -23,6 +24,16 @@ export default function App() {
     onSeeked,
   } = useTranscription(videoRef);
 
+  const handleConnect = useCallback((source, kw, isLiveStream) => {
+    setLiveSource(isLiveStream ? source : null);
+    connect(source, kw, isLiveStream);
+  }, [connect]);
+
+  const handleStop = useCallback(() => {
+    setLiveSource(null);
+    stop();
+  }, [stop]);
+
   return (
     <>
       <Header alertCount={alertCount} />
@@ -31,11 +42,17 @@ export default function App() {
         <SourcePanel
           status={status}
           connected={connected}
-          onConnect={connect}
-          onStop={stop}
+          onConnect={handleConnect}
+          onStop={handleStop}
           videoRef={videoRef}
         />
-        <VideoPlayer ref={videoRef} onPlay={onPlay} onPause={onPause} onSeeked={onSeeked} />
+        <VideoPlayer
+          ref={videoRef}
+          onPlay={onPlay}
+          onPause={onPause}
+          onSeeked={onSeeked}
+          streamSource={liveSource}
+        />
         <TranscriptBox transcripts={transcripts} interimText={interimText} />
       </div>
 
