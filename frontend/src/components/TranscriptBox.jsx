@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { API_BASE } from "../config.js";
 
 const SPEAKER_COLORS = [
   "#4fc3f7",
@@ -44,7 +45,7 @@ export default function TranscriptBox({ transcripts, interimText }) {
     setSummary("");
 
     try {
-      const res = await fetch("/summarize", {
+      const res = await fetch(`${API_BASE}/summarize`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ transcript: fullText }),

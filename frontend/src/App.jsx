@@ -1,11 +1,11 @@
-import { useRef, useState, useCallback } from 'react';
-import './App.css';
-import Header from './components/Header';
-import SourcePanel from './components/SourcePanel';
-import VideoPlayer from './components/VideoPlayer';
-import TranscriptBox from './components/TranscriptBox';
-import AlertsSection from './components/AlertsSection';
-import useTranscription from './hooks/useTranscription';
+import { useRef, useState, useCallback } from "react";
+import "./App.css";
+import Header from "./components/Header";
+import SourcePanel from "./components/SourcePanel";
+import VideoPlayer from "./components/VideoPlayer";
+import TranscriptBox from "./components/TranscriptBox";
+import AlertsSection from "./components/AlertsSection";
+import useTranscription from "./hooks/useTranscription";
 
 export default function App() {
   const videoRef = useRef(null);
@@ -26,10 +26,13 @@ export default function App() {
     seekTo,
   } = useTranscription(videoRef);
 
-  const handleConnect = useCallback((source, kw, isLiveStream) => {
-    setLiveSource(isLiveStream ? source : null);
-    connect(source, kw, isLiveStream);
-  }, [connect]);
+  const handleConnect = useCallback(
+    (source, kw, isLiveStream) => {
+      setLiveSource(isLiveStream ? source : null);
+      connect(source, kw, isLiveStream);
+    },
+    [connect],
+  );
 
   const handleStop = useCallback(() => {
     setLiveSource(null);

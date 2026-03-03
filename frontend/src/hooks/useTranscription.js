@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { fmtTs } from "../utils/helpers";
+import { WS_URL } from "../config.js";
 
 export default function useTranscription(videoRef) {
   const [transcripts, setTranscripts] = useState([]);
@@ -107,7 +108,7 @@ export default function useTranscription(videoRef) {
       stopSyncTimer();
       closeWs();
 
-      const ws = new WebSocket("ws://" + location.host + "/ws");
+      const ws = new WebSocket(WS_URL);
       wsRef.current = ws;
 
       ws.addEventListener("open", () => {

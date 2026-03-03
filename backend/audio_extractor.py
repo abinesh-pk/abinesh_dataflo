@@ -49,7 +49,8 @@ def _drain_stderr(process: subprocess.Popen, label: str = "ffmpeg"):
             line = process.stderr.readline()
             if not line:
                 break
-            print(f"[{label}] {line.decode(errors='replace').rstrip()}")
+            # Silencing verbose process output (HLS tags, etc.)
+            # print(f"[{label}] {line.decode(errors='replace').rstrip()}")
     except Exception:
         pass
 

@@ -22,6 +22,7 @@ import traceback
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from transcriber import DeepgramTranscriber
@@ -38,6 +39,14 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 FRONTEND_DIST = os.path.join(PROJECT_ROOT, "frontend", "dist")
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.get("/", response_class=HTMLResponse)

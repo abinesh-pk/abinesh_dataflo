@@ -1,19 +1,28 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback } from "react";
+import { API_BASE } from "../config.js";
 
-export default function SourcePanel({ status, connected, onConnect, onStop, onUpdateKeywords, videoRef }) {
-  const [srcType, setSrcType] = useState('local');
-  const [pathValue, setPathValue] = useState('');
-  const [urlValue, setUrlValue] = useState('');
-  const [keywords, setKeywords] = useState('');
+export default function SourcePanel({
+  status,
+  connected,
+  onConnect,
+  onStop,
+  onUpdateKeywords,
+  videoRef,
+}) {
+  const [srcType, setSrcType] = useState("local");
+  const [pathValue, setPathValue] = useState("");
+  const [urlValue, setUrlValue] = useState("");
+  const [keywords, setKeywords] = useState("");
 
   const handleBrowse = useCallback(async () => {
     try {
-      const res = await fetch('/browse');
+      const res = await fetch(`${API_BASE}/browse`);
       const data = await res.json();
       if (data.path) {
         setPathValue(data.path);
         if (videoRef.current) {
-          videoRef.current.src = '/local-video?path=' + encodeURIComponent(data.path);
+          videoRef.current.src =
+            `${API_BASE}/local-video?path=` + encodeURIComponent(data.path);
         }
       }
     } catch {
@@ -26,7 +35,8 @@ export default function SourcePanel({ status, connected, onConnect, onStop, onUp
       const p = e.target.value;
       setPathValue(p);
       if (p.trim() && videoRef.current) {
-        videoRef.current.src = '/local-video?path=' + encodeURIComponent(p.trim());
+        videoRef.current.src =
+          `${API_BASE}/local-video?path=` + encodeURIComponent(p.trim());
       }
     },
     [videoRef],
@@ -34,7 +44,7 @@ export default function SourcePanel({ status, connected, onConnect, onStop, onUp
 
   const parseKeywords = useCallback(() => {
     return keywords
-      .split(',')
+      .split(",")
       .map((k) => k.trim())
       .filter(Boolean);
   }, [keywords]);
@@ -45,12 +55,13 @@ export default function SourcePanel({ status, connected, onConnect, onStop, onUp
     let source;
     let isLiveStream;
 
-    if (srcType === 'local') {
+    if (srcType === "local") {
       isLiveStream = false;
       source = pathValue.trim();
       if (!source) return;
       if (videoRef.current) {
-        videoRef.current.src = '/local-video?path=' + encodeURIComponent(source);
+        videoRef.current.src =
+          `${API_BASE}/local-video?path=` + encodeURIComponent(source);
       }
     } else {
       isLiveStream = true;
@@ -75,9 +86,9 @@ export default function SourcePanel({ status, connected, onConnect, onStop, onUp
             type="radio"
             name="srcType"
             value="local"
-            checked={srcType === 'local'}
-            onChange={() => setSrcType('local')}
-          />{' '}
+            checked={srcType === "local"}
+            onChange={() => setSrcType("local")}
+          />{" "}
           Local File
         </label>
         <label>
@@ -85,15 +96,15 @@ export default function SourcePanel({ status, connected, onConnect, onStop, onUp
             type="radio"
             name="srcType"
             value="url"
-            checked={srcType === 'url'}
-            onChange={() => setSrcType('url')}
-          />{' '}
+            checked={srcType === "url"}
+            onChange={() => setSrcType("url")}
+          />{" "}
           URL
         </label>
       </div>
 
-      {srcType === 'local' ? (
-        <div style={{ display: 'flex', gap: '6px' }}>
+      {srcType === "local" ? (
+        <div style={{ display: "flex", gap: "6px" }}>
           <input
             type="text"
             value={pathValue}
@@ -104,7 +115,7 @@ export default function SourcePanel({ status, connected, onConnect, onStop, onUp
           <button
             className="btn btn-primary"
             onClick={handleBrowse}
-            style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}
+            style={{ padding: "8px 12px", whiteSpace: "nowrap" }}
           >
             Browse
           </button>
@@ -119,7 +130,7 @@ export default function SourcePanel({ status, connected, onConnect, onStop, onUp
       )}
 
       <label>Keywords</label>
-      <div style={{ display: 'flex', gap: '6px' }}>
+      <div style={{ display: "flex", gap: "6px" }}>
         <input
           type="text"
           value={keywords}
@@ -127,21 +138,29 @@ export default function SourcePanel({ status, connected, onConnect, onStop, onUp
           placeholder="fire, alert, emergency"
           style={{ flex: 1 }}
           onKeyDown={(e) => {
-            if (e.key === 'Enter' && connected) handleUpdateKeywords();
+            if (e.key === "Enter" && connected) handleUpdateKeywords();
           }}
         />
         {connected && (
           <button
             className="btn btn-primary"
             onClick={handleUpdateKeywords}
-            style={{ padding: '8px 12px', whiteSpace: 'nowrap', fontSize: '.8rem' }}
+            style={{
+              padding: "8px 12px",
+              whiteSpace: "nowrap",
+              fontSize: ".8rem",
+            }}
           >
             Update
           </button>
         )}
       </div>
 
-      <button className="btn btn-primary" disabled={connected} onClick={handleConnect}>
+      <button
+        className="btn btn-primary"
+        disabled={connected}
+        onClick={handleConnect}
+      >
         Connect
       </button>
       <button className="btn btn-danger" disabled={!connected} onClick={onStop}>
