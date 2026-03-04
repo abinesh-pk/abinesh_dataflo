@@ -1,8 +1,7 @@
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+import os
 import asyncio
-from config import SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM
+from sendgrid import SendGridAPIClient
+from sendgrid.helpers.mail import Mail
 
 
 def _format_timestamp(seconds: float) -> str:
@@ -20,17 +19,21 @@ def print_alert(keyword: str, timestamp: float, context: str):
 
 
 def _send_email_sync(to_email: str, keyword: str, timestamp: str, context: str, match_type: str):
-    """Send a keyword alert email (blocking — run in a thread)."""
-    if not SMTP_USER or not SMTP_PASS:
-        print("[alert_manager] SMTP credentials not set, skipping email alert")
+    """Send a keyword alert email using SendGrid API."""
+    api_key = os.environ.get("SENDGRID_API_KEY")
+    sender = os.environ.get("ALERT_EMAIL_SENDER")
+
+    if not api_key:
+        print("[alert_manager] SendGrid not configured, skipping email.")
+        return
+    
+    if not sender:
+        print("[alert_manager] ALERT_EMAIL_SENDER not set, skipping email alert.")
         return
 
-    msg = MIMEMultipart("alternative")
-    msg["From"] = SMTP_FROM
-    msg["To"] = to_email
-    msg["Subject"] = f"\U0001F6A8 Keyword Alert: \"{keyword}\" detected"
-
-    text = (
+    subject = f"🚨 Keyword Alert: \"{keyword}\" detected"
+    
+    text_content = (
         f"Keyword Alert\n\n"
         f"Keyword: {keyword}\n"
         f"Match Type: {match_type}\n"
@@ -38,10 +41,11 @@ def _send_email_sync(to_email: str, keyword: str, timestamp: str, context: str, 
         f"Context: {context}\n\n"
         f"— Live Transcription Monitor"
     )
-    html = f"""\
+    
+    html_content = f"""\
     <div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;border:1px solid #dde2ea;border-radius:6px;overflow:hidden">
       <div style="background:#0f1c2e;color:#fff;padding:14px 20px;font-size:14px;font-weight:700;letter-spacing:1px">
-        \U0001F6A8 KEYWORD ALERT
+        🚨 KEYWORD ALERT
       </div>
       <div style="padding:20px">
         <div style="font-size:22px;font-weight:700;color:#0f1c2e;margin-bottom:8px">{keyword.upper()}</div>
@@ -58,17 +62,24 @@ def _send_email_sync(to_email: str, keyword: str, timestamp: str, context: str, 
       </div>
     </div>
     """
-    msg.attach(MIMEText(text, "plain"))
-    msg.attach(MIMEText(html, "html"))
+
+    message = Mail(
+        from_email=sender,
+        to_emails=to_email,
+        subject=subject,
+        plain_text_content=text_content,
+        html_content=html_content
+    )
 
     try:
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
-            server.starttls()
-            server.login(SMTP_USER, SMTP_PASS)
-            server.sendmail(SMTP_FROM, to_email, msg.as_string())
-        print(f"[alert_manager] Email alert sent to {to_email} for keyword '{keyword}'")
+        sg = SendGridAPIClient(api_key)
+        response = sg.send(message)
+        if response.status_code < 300:
+            print(f"[alert_manager] SendGrid alert sent to {to_email} for keyword '{keyword}' (Status: {response.status_code})")
+        else:
+            print(f"[alert_manager] SendGrid failed with status {response.status_code}: {response.body}")
     except Exception as e:
-        print(f"[alert_manager] Email alert failed: {e}")
+        print(f"[alert_manager] SendGrid error: {e}")
 
 
 async def send_email_alert(to_email: str, keyword: str, timestamp_str: str, context: str, match_type: str):
