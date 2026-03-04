@@ -15,6 +15,7 @@ export default function SourcePanel({
   const [language, setLanguage] = useState("en-US");
   const [uploadProgress, setUploadProgress] = useState(null);
   const [uploadError, setUploadError] = useState(null);
+  const [notifStatus, setNotifStatus] = useState("default");
   const fileInputRef = useRef(null);
 
   const handleFileChange = useCallback((e) => {
@@ -59,6 +60,27 @@ export default function SourcePanel({
   const handleConnect = useCallback(async () => {
     const kw = parseKeywords();
     setUploadError(null);
+
+    if ("Notification" in window) {
+      if (Notification.permission === "default") {
+        try {
+          Notification.requestPermission().then((permission) => {
+            setNotifStatus(permission);
+            if (permission === "granted") {
+              new Notification("Notifications Enabled", {
+                body: "You will receive alerts here.",
+              });
+            }
+          });
+        } catch (e) {
+          console.warn("Notification request error:", e);
+        }
+      } else {
+        setNotifStatus(Notification.permission);
+      }
+    } else {
+      setNotifStatus("unsupported");
+    }
 
     if (srcType === "local") {
       if (!selectedFile) return;
@@ -265,6 +287,22 @@ export default function SourcePanel({
       <button className="btn btn-danger" disabled={!connected} onClick={onStop}>
         Stop
       </button>
+
+      {notifStatus === "granted" && (
+        <div style={{ fontSize: "0.8rem", color: "#4caf50", marginTop: "4px" }}>
+          🔔 Notifications enabled
+        </div>
+      )}
+      {notifStatus === "denied" && (
+        <div style={{ fontSize: "0.8rem", color: "#999", marginTop: "4px" }}>
+          🔕 Notifications blocked — check browser settings
+        </div>
+      )}
+      {notifStatus === "unsupported" && (
+        <div style={{ fontSize: "0.8rem", color: "#999", marginTop: "4px" }}>
+          🔕 Web Notifications not supported in this browser
+        </div>
+      )}
 
       <div className="status-text" style={{ color: status.color }}>
         {status.text}

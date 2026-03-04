@@ -2,6 +2,26 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { fmtTs } from "../utils/helpers";
 import { WS_URL } from "../config.js";
 
+function sendPushNotification(keyword, context, timestamp) {
+  try {
+    if (!("Notification" in window)) return;
+    if (Notification.permission !== "granted") return;
+
+    const safeContext = context || "Keyword detected in audio stream.";
+    const body =
+      safeContext.length > 100
+        ? safeContext.substring(0, 100) + "..."
+        : safeContext;
+
+    new Notification(`🚨 Keyword Detected: "${keyword || "Alert"}"`, {
+      body: `${body}\n\nTime: ${timestamp || ""}`,
+      requireInteraction: false,
+    });
+  } catch (err) {
+    console.warn("Failed to send push notification:", err);
+  }
+}
+
 export default function useTranscription(videoRef) {
   const [transcripts, setTranscripts] = useState([]);
   const [interimText, setInterimText] = useState(null);
@@ -159,6 +179,7 @@ export default function useTranscription(videoRef) {
         }
 
         if (msg.type === "alert") {
+          sendPushNotification(msg.keyword, msg.context, msg.timestamp);
           if (isLiveStreamRef.current) {
             setAlerts((prev) => [msg, ...prev]);
             setAlertCount((prev) => prev + 1);
