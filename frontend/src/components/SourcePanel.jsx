@@ -12,7 +12,7 @@ export default function SourcePanel({
   const [selectedFile, setSelectedFile] = useState(null);
   const [urlValue, setUrlValue] = useState("");
   const [keywords, setKeywords] = useState("");
-  const [language, setLanguage] = useState("auto");
+  const [language, setLanguage] = useState("en-US");
   const [uploadProgress, setUploadProgress] = useState(null);
   const [uploadError, setUploadError] = useState(null);
   const fileInputRef = useRef(null);
@@ -208,8 +208,7 @@ export default function SourcePanel({
           marginBottom: "12px",
         }}
       >
-        <option value="auto">Auto-detect</option>
-        <option value="en">English</option>
+        <option value="en-US">English</option>
         <option value="es">Spanish</option>
         <option value="fr">French</option>
         <option value="de">German</option>

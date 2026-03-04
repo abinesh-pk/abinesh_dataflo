@@ -173,7 +173,7 @@ async def websocket_endpoint(ws: WebSocket):
 
                 source = msg.get("source", "")
                 keywords = [k.strip() for k in msg.get("keywords", []) if k.strip()]
-                language = msg.get("language", "auto")
+                language = msg.get("language", "en-US")
                 
                 # Trust is_live if it was explicitly sent by the latest frontend.
                 # If it's missing (outdated frontend cache), detect it from the source.
