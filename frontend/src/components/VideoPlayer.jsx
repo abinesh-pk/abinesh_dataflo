@@ -28,12 +28,7 @@ const YouTubePlayer = ({ videoId }) => (
     title="Live Stream"
     allow="autoplay; encrypted-media; picture-in-picture"
     allowFullScreen
-    style={{
-      width: "100%",
-      aspectRatio: "16/9",
-      border: "none",
-      borderRadius: "8px",
-    }}
+    style={{ width: "100%", aspectRatio: "16/9", border: "none" }}
   />
 );
 
@@ -42,12 +37,7 @@ const TwitchPlayer = ({ channel }) => (
     src={`https://player.twitch.tv/?channel=${channel}&parent=${window.location.hostname}&autoplay=true&muted=false`}
     title="Twitch Stream"
     allowFullScreen
-    style={{
-      width: "100%",
-      aspectRatio: "16/9",
-      border: "none",
-      borderRadius: "8px",
-    }}
+    style={{ width: "100%", aspectRatio: "16/9", border: "none" }}
   />
 );
 
@@ -92,9 +82,7 @@ const HlsPlayer = forwardRef(function HlsPlayer(
     };
   }, [ref, onPlay, onPause, onSeeked]);
 
-  return (
-    <video ref={ref} controls style={{ width: "100%", borderRadius: "8px" }} />
-  );
+  return <video ref={ref} controls />;
 });
 
 const RtmpFallback = () => (
@@ -102,20 +90,19 @@ const RtmpFallback = () => (
     style={{
       width: "100%",
       aspectRatio: "16/9",
-      background: "#1a1a2e",
-      borderRadius: "8px",
+      background: "#f8fafc",
       display: "flex",
       flexDirection: "column",
       alignItems: "center",
       justifyContent: "center",
-      color: "#aaa",
+      color: "var(--text-muted)",
       gap: "8px",
     }}
   >
     <span style={{ fontSize: "2rem" }}>{"\uD83C\uDF99\uFE0F"}</span>
-    <span>RTMP video preview not available in browser</span>
-    <span style={{ fontSize: "0.85rem", color: "#777" }}>
-      Audio transcription is active
+    <span>RTMP video preview not available</span>
+    <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
+      Audio transcription active
     </span>
   </div>
 );
@@ -137,9 +124,7 @@ const LocalVideo = forwardRef(function LocalVideo(
     };
   }, [ref, onPlay, onPause, onSeeked]);
 
-  return (
-    <video ref={ref} controls style={{ width: "100%", borderRadius: "8px" }} />
-  );
+  return <video ref={ref} controls />;
 });
 
 const VideoPlayer = forwardRef(function VideoPlayer(
@@ -180,9 +165,35 @@ const VideoPlayer = forwardRef(function VideoPlayer(
     );
   }
 
+  const isFile = !streamSource || streamSource.startsWith("blob:");
+  const sourceName = isFile ? "LOCAL MEDIA FILE" : streamSource || "NO SOURCE";
+  const icon =
+    streamType === "youtube"
+      ? "\uD83D\uDCFA"
+      : streamType === "twitch"
+        ? "\uD83C\uDFAE"
+        : streamType === "rtmp"
+          ? "\uD83D\uDCE1"
+          : streamType === "hls"
+            ? "\uD83C\uDF10"
+            : "\uD83D\uDCC1";
+
   return (
-    <div className="video-col">
-      <h2>{"\uD83C\uDFAC"} Video</h2>
+    <div className="video-wrapper">
+      <div className="video-info-bar">
+        <div className="source-label">
+          <span>{icon}</span>
+          <span>{sourceName}</span>
+        </div>
+        {isFile ? (
+          <div className="file-badge">■ FILE</div>
+        ) : (
+          <div className="live-badge">
+            <div className="live-dot" />
+            LIVE
+          </div>
+        )}
+      </div>
       {player}
     </div>
   );

@@ -2,14 +2,14 @@ import React, { useState, useEffect, useRef } from "react";
 import { API_BASE } from "../config.js";
 
 const SPEAKER_COLORS = [
-  "#4fc3f7",
-  "#81c784",
-  "#ffb74d",
-  "#e57373",
-  "#ba68c8",
-  "#4dd0e1",
-  "#fff176",
-  "#f06292",
+  "#1a56db",
+  "#16a34a",
+  "#d97706",
+  "#dc2626",
+  "#7c3aed",
+  "#0891b2",
+  "#ca8a04",
+  "#e11d48",
 ];
 
 function speakerLabel(speaker) {
@@ -107,46 +107,74 @@ export default function TranscriptBox({
     }
   };
 
+  const wordCount = transcripts.reduce(
+    (acc, t) => acc + t.text.split(/\s+/).filter(Boolean).length,
+    0,
+  );
+
   return (
     <div className="transcript-col">
-      <h2>{"\uD83D\uDCDD"} Live Transcript</h2>
+      <div className="caption-header">
+        <h2>CAPTION FEED</h2>
+        <div className={`signal-bars ${connected ? "active" : ""}`}>
+          <span />
+          <span />
+          <span />
+        </div>
+      </div>
+
+      <div className={`status-strip ${connected ? "receiving" : "idle"}`}>
+        {connected ? "● RECEIVING" : "● IDLE"}
+      </div>
+
       <div className="transcript-box" ref={boxRef}>
         {empty && (
-          <span style={{ color: "#555" }}>Waiting for transcript...</span>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              height: "100%",
+              color: "var(--text-muted)",
+              fontFamily: "var(--font-sans)",
+              fontSize: "0.85rem",
+              letterSpacing: "1px",
+            }}
+          >
+            AWAITING SIGNAL...
+          </div>
         )}
         {transcripts.map((t, i) => (
           <div key={i} className="t-final">
             <span className="t-ts">[{t.timestamp}]</span>
-            {speakerLabel(t.speaker)} {t.text}
+            <span className="t-text">
+              {speakerLabel(t.speaker)} {t.text}
+            </span>
           </div>
         ))}
-        {interimText && (
-          <div className="t-interim">
-            <span className="t-ts">[{interimText.timestamp}]</span>
-            {speakerLabel(interimText.speaker)} {interimText.text}
-          </div>
-        )}
+        {interimText && <div className="t-interim">{interimText.text}</div>}
       </div>
 
-      {transcripts.length > 0 && language !== "en-US" && (
-        <button
-          className="btn btn-translate"
-          onClick={handleTranslate}
-          disabled={translating}
-        >
-          {translating ? "⏳ Translating..." : "🌐 Translate to English"}
-        </button>
-      )}
-
-      {transcripts.length > 0 && (
-        <button
-          className="btn btn-summary"
-          onClick={handleSummarize}
-          disabled={loading}
-        >
-          {loading ? "⏳ Generating Summary..." : "✨ Generate Summary"}
-        </button>
-      )}
+      <div className="action-buttons">
+        {transcripts.length > 0 && language !== "en-US" && (
+          <button
+            className="btn btn-translate"
+            onClick={handleTranslate}
+            disabled={translating}
+          >
+            {translating ? "Translating..." : "Translate to English"}
+          </button>
+        )}
+        {transcripts.length > 0 && (
+          <button
+            className="btn btn-summary"
+            onClick={handleSummarize}
+            disabled={loading}
+          >
+            {loading ? "Generating..." : "Generate Summary"}
+          </button>
+        )}
+      </div>
 
       {translationError && (
         <div className="summary-error">{translationError}</div>
@@ -156,11 +184,11 @@ export default function TranscriptBox({
       {translation && (
         <div className="summary-box">
           <div className="summary-header">
-            <h3>🌐 English Translation</h3>
+            <h3>ENGLISH TRANSLATION</h3>
             <button
               className="btn-close"
               onClick={() => setTranslation("")}
-              title="Close Translation"
+              title="Close"
             >
               &times;
             </button>
@@ -172,11 +200,11 @@ export default function TranscriptBox({
       {summary && (
         <div className="summary-box">
           <div className="summary-header">
-            <h3>{"\uD83D\uDCCB"} Summary</h3>
+            <h3>SESSION SUMMARY</h3>
             <button
               className="btn-close"
               onClick={() => setSummary("")}
-              title="Close Summary"
+              title="Close"
             >
               &times;
             </button>
@@ -184,6 +212,11 @@ export default function TranscriptBox({
           <div className="summary-content">{summary}</div>
         </div>
       )}
+
+      <div className="caption-footer">
+        <span>{wordCount} words</span>
+        <span>{transcripts.length} lines</span>
+      </div>
     </div>
   );
 }

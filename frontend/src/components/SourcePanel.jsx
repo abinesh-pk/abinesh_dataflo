@@ -115,9 +115,26 @@ export default function SourcePanel({
 
   const uploading = uploadProgress !== null;
 
+  const ledClass =
+    connected && !status.text.includes("Paused")
+      ? "active"
+      : status.text.includes("Paused")
+        ? "paused"
+        : connected
+          ? "active"
+          : "standby";
+
+  const ledText =
+    connected && !status.text.includes("Paused")
+      ? "MONITORING ACTIVE"
+      : status.text.includes("Paused")
+        ? "PAUSED"
+        : "STANDBY";
+
   return (
     <div className="panel">
-      <label>Source</label>
+      <div className="section-label">SOURCE CONFIGURATION</div>
+
       <div className="radio-group">
         <label>
           <input
@@ -126,8 +143,8 @@ export default function SourcePanel({
             value="local"
             checked={srcType === "local"}
             onChange={() => setSrcType("local")}
-          />{" "}
-          Upload File
+          />
+          UPLOAD MEDIA
         </label>
         <label>
           <input
@@ -136,34 +153,27 @@ export default function SourcePanel({
             value="url"
             checked={srcType === "url"}
             onChange={() => setSrcType("url")}
-          />{" "}
-          URL
+          />
+          STREAM URL
         </label>
       </div>
 
       {srcType === "local" ? (
         <div>
-          <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-            <button
-              className="btn btn-primary"
-              onClick={() => fileInputRef.current?.click()}
-              style={{ padding: "8px 12px", whiteSpace: "nowrap" }}
-              disabled={uploading}
-            >
-              Choose File
-            </button>
-            <span
-              style={{
-                fontSize: ".82rem",
-                color: "#aaa",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-                flex: 1,
-              }}
-            >
-              {selectedFile ? selectedFile.name : "No file selected"}
-            </span>
+          <div
+            className="drop-zone"
+            onClick={() => !uploading && fileInputRef.current?.click()}
+            style={{ opacity: uploading ? 0.5 : 1 }}
+          >
+            {selectedFile ? (
+              <span className="drop-zone-text" style={{ color: "#fff" }}>
+                {selectedFile.name}
+              </span>
+            ) : (
+              <span className="drop-zone-text">
+                {"\uD83D\uDCE4"} Click to upload media file
+              </span>
+            )}
             <input
               ref={fileInputRef}
               type="file"
@@ -173,18 +183,18 @@ export default function SourcePanel({
             />
           </div>
           {uploading && (
-            <div style={{ marginTop: "6px" }}>
+            <div style={{ marginTop: "8px" }}>
               <div
                 style={{
-                  background: "#333",
-                  borderRadius: "4px",
-                  height: "6px",
+                  background: "rgba(255,255,255,.1)",
+                  borderRadius: "2px",
+                  height: "3px",
                   overflow: "hidden",
                 }}
               >
                 <div
                   style={{
-                    background: "#2979ff",
+                    background: "#1a56db",
                     height: "100%",
                     width: `${uploadProgress}%`,
                     transition: "width 0.2s",
@@ -193,21 +203,23 @@ export default function SourcePanel({
               </div>
               <div
                 style={{
-                  fontSize: ".78rem",
-                  color: "#aaa",
-                  textAlign: "center",
-                  marginTop: "2px",
+                  fontSize: ".7rem",
+                  fontFamily: "var(--font-mono)",
+                  color: "rgba(255,255,255,.5)",
+                  textAlign: "right",
+                  marginTop: "3px",
                 }}
               >
-                Uploading... {uploadProgress}%
+                {uploadProgress}%
               </div>
             </div>
           )}
           {uploadError && (
             <div
               style={{
-                fontSize: ".78rem",
-                color: "#ff5252",
+                fontSize: ".7rem",
+                fontFamily: "var(--font-mono)",
+                color: "#f87171",
                 marginTop: "4px",
               }}
             >
@@ -216,28 +228,21 @@ export default function SourcePanel({
           )}
         </div>
       ) : (
-        <input
-          type="text"
-          value={urlValue}
-          onChange={(e) => setUrlValue(e.target.value)}
-          placeholder="rtmp://... or .m3u8 or YouTube"
-        />
+        <div className="input-with-icon">
+          <span>{"\uD83D\uDCE1"}</span>
+          <input
+            type="text"
+            value={urlValue}
+            onChange={(e) => setUrlValue(e.target.value)}
+            placeholder="rtmp://... or .m3u8 or YouTube URL"
+          />
+        </div>
       )}
 
-      <label>Language</label>
-      <select
-        value={language}
-        onChange={(e) => setLanguage(e.target.value)}
-        style={{
-          width: "100%",
-          padding: "8px",
-          background: "#222",
-          color: "#fff",
-          border: "1px solid #444",
-          borderRadius: "4px",
-          marginBottom: "12px",
-        }}
-      >
+      <hr className="divider" />
+
+      <label>TARGET LANGUAGE</label>
+      <select value={language} onChange={(e) => setLanguage(e.target.value)}>
         <option value="en-US">English</option>
         <option value="es">Spanish</option>
         <option value="fr">French</option>
@@ -250,63 +255,84 @@ export default function SourcePanel({
         <option value="zh">Chinese</option>
       </select>
 
-      <label>Keywords</label>
-      <div style={{ display: "flex", gap: "6px" }}>
+      <hr className="divider" />
+
+      <label>KEYWORD TARGETS</label>
+      <div className="keywords-container">
+        {parseKeywords().map((kw, i) => (
+          <div key={i} className="keyword-pill">
+            {kw}
+            <span
+              className="keyword-remove"
+              onClick={() => {
+                const arr = parseKeywords();
+                arr.splice(i, 1);
+                setKeywords(arr.join(", "));
+                if (connected) setTimeout(() => onUpdateKeywords(arr), 50);
+              }}
+            >
+              &times;
+            </span>
+          </div>
+        ))}
         <input
           type="text"
+          className="keywords-input-ghost"
           value={keywords}
           onChange={(e) => setKeywords(e.target.value)}
-          placeholder="fire, alert, emergency"
-          style={{ flex: 1 }}
+          placeholder={
+            parseKeywords().length === 0 ? "type keyword, press Enter" : ""
+          }
           onKeyDown={(e) => {
-            if (e.key === "Enter" && connected) handleUpdateKeywords();
+            if (e.key === "Enter" && connected) {
+              e.preventDefault();
+              handleUpdateKeywords();
+            }
           }}
+          onBlur={() => connected && handleUpdateKeywords()}
         />
-        {connected && (
-          <button
-            className="btn btn-primary"
-            onClick={handleUpdateKeywords}
-            style={{
-              padding: "8px 12px",
-              whiteSpace: "nowrap",
-              fontSize: ".8rem",
-            }}
-          >
-            Update
-          </button>
-        )}
       </div>
 
-      <button
-        className="btn btn-primary"
-        disabled={connected || uploading}
-        onClick={handleConnect}
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: "8px",
+          marginTop: "4px",
+        }}
       >
-        {uploading ? "Uploading..." : "Connect"}
-      </button>
-      <button className="btn btn-danger" disabled={!connected} onClick={onStop}>
-        Stop
-      </button>
+        <button
+          className={`btn btn-primary ${connected ? "active" : ""}`}
+          disabled={connected || uploading}
+          onClick={handleConnect}
+        >
+          {uploading ? "UPLOADING..." : "INITIATE MONITORING"}
+        </button>
+        <button
+          className="btn btn-danger"
+          disabled={!connected}
+          onClick={onStop}
+        >
+          TERMINATE
+        </button>
+      </div>
+
+      <div style={{ flex: 1 }} />
+
+      <div className="status-indicator">
+        <div className={`led ${ledClass}`} />
+        <span>{ledText}</span>
+      </div>
 
       {notifStatus === "granted" && (
-        <div style={{ fontSize: "0.8rem", color: "#4caf50", marginTop: "4px" }}>
-          🔔 Notifications enabled
-        </div>
+        <div className="notif-badge enabled">● NOTIFICATIONS ON</div>
       )}
       {notifStatus === "denied" && (
-        <div style={{ fontSize: "0.8rem", color: "#999", marginTop: "4px" }}>
-          🔕 Notifications blocked — check browser settings
-        </div>
+        <div className="notif-badge">● NOTIFICATIONS BLOCKED</div>
       )}
       {notifStatus === "unsupported" && (
-        <div style={{ fontSize: "0.8rem", color: "#999", marginTop: "4px" }}>
-          🔕 Web Notifications not supported in this browser
-        </div>
+        <div className="notif-badge">● NOTIFICATIONS N/A</div>
       )}
-
-      <div className="status-text" style={{ color: status.color }}>
-        {status.text}
-      </div>
     </div>
   );
 }

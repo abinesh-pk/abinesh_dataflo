@@ -46,7 +46,7 @@ export default function App() {
 
   return (
     <>
-      <Header alertCount={alertCount} />
+      <Header alertCount={alertCount} connected={connected} />
 
       <div className="main">
         <SourcePanel
