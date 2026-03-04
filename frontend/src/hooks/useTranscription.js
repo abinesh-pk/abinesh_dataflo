@@ -115,7 +115,15 @@ export default function useTranscription(videoRef) {
   }, []);
 
   const connect = useCallback(
-    (source, keywords, isLiveStream, sessionId, language, alertEmail) => {
+    (
+      source,
+      keywords,
+      isLiveStream,
+      sessionId,
+      language,
+      alertEmail,
+      displayName,
+    ) => {
       setTranscripts([]);
       setInterimText(null);
       setAlerts([]);
@@ -136,6 +144,7 @@ export default function useTranscription(videoRef) {
         const initMsg = {
           action: "init",
           source,
+          source_name: displayName || source,
           keywords,
           is_live: isLiveStreamRef.current,
           language,

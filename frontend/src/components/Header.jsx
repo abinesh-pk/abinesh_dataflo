@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 
-export default function Header({ alertCount, connected }) {
+export default function Header({ alertCount, connected, onToggleHistory }) {
   const [time, setTime] = useState(new Date());
 
   useEffect(() => {
@@ -26,6 +26,9 @@ export default function Header({ alertCount, connected }) {
         <div className={`conn-pill ${connected ? "online" : "offline"}`}>
           ● {connected ? "ONLINE" : "OFFLINE"}
         </div>
+        <button className="btn-history" onClick={onToggleHistory}>
+          {"\uD83D\uDCDC"} HISTORY
+        </button>
         <div className="badge">{alertCount}</div>
       </div>
     </div>

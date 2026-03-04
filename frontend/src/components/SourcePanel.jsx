@@ -97,6 +97,7 @@ export default function SourcePanel({
           selectedFile,
           language,
           alertEmail,
+          selectedFile.name,
         );
       } catch (err) {
         setUploadProgress(null);
@@ -105,7 +106,7 @@ export default function SourcePanel({
     } else {
       const source = urlValue.trim();
       if (!source) return;
-      onConnect(source, kw, true, null, null, language, alertEmail);
+      onConnect(source, kw, true, null, null, language, alertEmail, source);
     }
   }, [
     srcType,

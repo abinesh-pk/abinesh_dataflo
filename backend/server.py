@@ -32,6 +32,11 @@ from alert_manager import _format_timestamp, send_email_alert
 from audio_extractor import start_ffmpeg_from_pipe
 from config import GROQ_API_KEY
 
+import database
+from contextlib import asynccontextmanager
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse
+from datetime import datetime, timezone
+
 _pipe_sessions: dict[str, dict] = {}
 
 BASE_DIR = os.path.dirname(__file__)
@@ -42,7 +47,12 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 FRONTEND_DIST = os.path.join(PROJECT_ROOT, "frontend", "dist")
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await database.init_db()
+    yield
+
+app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -103,12 +113,18 @@ async def websocket_endpoint(ws: WebSocket):
     await ws.accept()
 
     source: str | None = None
+    source_name: str | None = None
     keywords: list[str] = []
     transcript_history: list[dict] = []
     alert_email: str | None = None
     pause_event = asyncio.Event()
     task: asyncio.Task | None = None
     transcriber: DeepgramTranscriber | None = None
+
+    # Database session tracking
+    db_session_id: str | None = None
+    session_started_at: datetime | None = None
+    session_language: str = "en"
 
     async def _send(msg: dict):
         try:
@@ -137,6 +153,13 @@ async def websocket_endpoint(ws: WebSocket):
             entry = {"text": text, "start": start_time}
             transcript_history.append(entry)
             
+            if db_session_id:
+                asyncio.create_task(database.append_transcript(db_session_id, {
+                    "timestamp": _format_timestamp(start_time),
+                    "text": text,
+                    "start_time": start_time
+                }))
+
             async def _check_and_alert(target_text: str, context_text: str):
                 for m in check_keywords(target_text, keywords):
                     await _send({
@@ -153,6 +176,16 @@ async def websocket_endpoint(ws: WebSocket):
                             _format_timestamp(start_time),
                             context_text, m["match_type"],
                         ))
+                    
+                    if db_session_id:
+                        asyncio.create_task(database.save_alert({
+                            "session_id": db_session_id,
+                            "keyword": m["keyword"],
+                            "timestamp": _format_timestamp(start_time),
+                            "context": context_text,
+                            "match_type": m["match_type"],
+                            "detected_at": datetime.now(timezone.utc)
+                        }))
 
             if language and language != "en-US" and keywords:
                 async def _translate_and_check():
@@ -188,8 +221,15 @@ async def websocket_endpoint(ws: WebSocket):
         try:
             await transcriber.run()
             await _send({"type": "status", "status": "finished"})
+            if db_session_id and session_started_at:
+                end_time = datetime.now(timezone.utc)
+                duration = (end_time - session_started_at).total_seconds()
+                await database.close_session(db_session_id, end_time, duration)
         except asyncio.CancelledError:
-            pass
+            if db_session_id and session_started_at:
+                end_time = datetime.now(timezone.utc)
+                duration = (end_time - session_started_at).total_seconds()
+                await database.close_session(db_session_id, end_time, duration)
         except Exception:
             traceback.print_exc()
             await _send({"type": "status", "status": "error"})
@@ -216,7 +256,9 @@ async def websocket_endpoint(ws: WebSocket):
                 await _cleanup_transcriber()
 
                 source = msg.get("source", "")
+                source_name = msg.get("source_name", source)
                 keywords = [k.strip() for k in msg.get("keywords", []) if k.strip()]
+                session_language = msg.get("language", "en")
                 language = msg.get("language", "en-US")
                 alert_email = msg.get("alert_email", "").strip() or None
                 if alert_email:
@@ -267,6 +309,25 @@ async def websocket_endpoint(ws: WebSocket):
                 if task and not task.done():
                     continue
                 pause_event.clear()
+                
+                # Database session start
+                db_session_id = str(uuid.uuid4())
+                session_started_at = datetime.now(timezone.utc)
+                from audio_extractor import _detect_source_type
+                source_type = _detect_source_type(source)
+                await database.create_session({
+                    "session_id": db_session_id,
+                    "source_name": source_name,
+                    "source_type": source_type,
+                    "language": session_language,
+                    "keywords": keywords,
+                    "started_at": session_started_at,
+                    "ended_at": None,
+                    "duration_seconds": 0,
+                    "alert_count": 0,
+                    "transcripts": []
+                })
+
                 task = asyncio.create_task(run_pipeline())
                 await _send({"type": "status", "status": "running"})
 
@@ -409,6 +470,43 @@ async def translate_transcript(req: SummarizeRequest):
     except Exception as e:
         traceback.print_exc()
         return JSONResponse({"error": str(e)}, status_code=500)
+
+
+# ---------- History API Endpoints ----------
+
+@app.get("/history")
+async def get_history(limit: int = 50):
+    sessions = await database.get_all_sessions(limit)
+    return sessions
+
+@app.get("/history/{session_id}")
+async def get_session_details(session_id: str):
+    session = await database.get_session(session_id)
+    if not session:
+        return JSONResponse({"error": "Session not found"}, status_code=404)
+    return session
+
+@app.delete("/history/{session_id}")
+async def delete_session(session_id: str):
+    success = await database.delete_session(session_id)
+    if success:
+        return {"deleted": session_id}
+    return JSONResponse({"error": "Failed to delete session"}, status_code=500)
+
+@app.get("/history/{session_id}/export")
+async def export_transcript(session_id: str):
+    text = await database.get_transcript_text(session_id)
+    if not text:
+        # Check if session exists but just empty transcript
+        session = await database.get_session(session_id)
+        if not session:
+             return JSONResponse({"error": "Session not found"}, status_code=404)
+    
+    filename = f"transcript_{session_id[:8]}.txt"
+    return PlainTextResponse(
+        text,
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
 
 
 if os.path.isdir(os.path.join(FRONTEND_DIST, "assets")):

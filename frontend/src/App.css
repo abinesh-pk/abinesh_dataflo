@@ -806,3 +806,274 @@ video {
 .notif-badge.enabled {
   color: var(--accent-green);
 }
+
+/* ─── History Button ─── */
+.btn-history {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: var(--accent-amber);
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: 0.7rem;
+  padding: 4px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  letter-spacing: 1px;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.btn-history:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: var(--accent-amber);
+}
+
+/* ─── History Drawer ─── */
+.history-drawer {
+  position: fixed;
+  top: 0;
+  right: -450px;
+  width: 450px;
+  height: 100vh;
+  background: var(--bg-sidebar);
+  border-left: 2px solid var(--accent-blue);
+  z-index: 1000;
+  transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  box-shadow: -10px 0 30px rgba(0, 0, 0, 0.5);
+}
+.history-drawer.open {
+  right: 0;
+}
+.drawer-header {
+  padding: 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+.drawer-header h2 {
+  font-family: var(--font-sans);
+  color: var(--accent-amber);
+  font-size: 0.9rem;
+  letter-spacing: 2px;
+  margin: 0;
+}
+.drawer-actions {
+  display: flex;
+  gap: 12px;
+}
+.btn-refresh,
+.btn-close-drawer {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+.btn-refresh:hover,
+.btn-close-drawer:hover {
+  color: #fff;
+}
+
+.drawer-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+/* ─── History Cards ─── */
+.history-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 12px;
+  transition: all 0.2s;
+}
+.history-card:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+.card-top {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.card-title {
+  color: #fff;
+  font-size: 0.85rem;
+}
+.card-meta {
+  text-align: right;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.4);
+  font-family: var(--font-mono);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.card-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+.badge-lang {
+  background: var(--accent-blue);
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+.badge-kw {
+  background: rgba(217, 119, 6, 0.15);
+  color: var(--accent-amber);
+  border: 1px solid rgba(217, 119, 6, 0.3);
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.65rem;
+}
+.badge-alerts {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.65rem;
+  font-weight: 700;
+}
+.badge-alerts.red {
+  background: var(--accent-red);
+  color: #fff;
+}
+.badge-alerts.green {
+  background: rgba(22, 163, 74, 0.15);
+  color: var(--accent-green);
+  border: 1px solid var(--accent-green);
+}
+
+.card-actions {
+  display: flex;
+  gap: 8px;
+}
+.card-actions button {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #fff;
+  padding: 6px;
+  border-radius: 4px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.card-actions button:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+.card-actions button.delete {
+  background: rgba(220, 38, 38, 0.1);
+  color: var(--accent-red);
+  border-color: rgba(220, 38, 38, 0.2);
+}
+.card-actions button.delete:hover {
+  background: var(--accent-red);
+  color: #fff;
+}
+
+/* Expanded Card View */
+.card-details {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+.transcript-viewport {
+  max-height: 250px;
+  overflow-y: auto;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+.t-line {
+  display: flex;
+  gap: 12px;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+.t-line .t-ts {
+  color: var(--accent-amber);
+  flex-shrink: 0;
+}
+.t-line .t-val {
+  color: #fff;
+}
+
+.alert-mini-card {
+  background: rgba(220, 38, 38, 0.05);
+  border-left: 3px solid var(--accent-red);
+  padding: 8px 12px;
+  margin-bottom: 8px;
+  border-radius: 2px;
+}
+.alert-mini-top {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+  font-size: 0.7rem;
+}
+.alert-mini-top strong {
+  color: #fff;
+}
+.alert-mini-top span {
+  color: rgba(255, 255, 255, 0.5);
+}
+.alert-mini-ctx {
+  font-size: 0.65rem;
+  color: rgba(255, 255, 255, 0.7);
+  font-style: italic;
+}
+
+.history-empty,
+.history-loading,
+.history-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: rgba(255, 255, 255, 0.4);
+  text-align: center;
+}
+.history-empty span {
+  font-size: 3rem;
+  margin-bottom: 16px;
+  opacity: 0.3;
+}
+.skeleton-card {
+  width: 100%;
+  height: 120px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 8px;
+  margin-bottom: 12px;
+  animation: pulse-green 2s infinite ease-in-out;
+}
+
+.btn-close-details {
+  width: 100%;
+  margin-top: 12px;
+  padding: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border-radius: 4px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  cursor: pointer;
+}
