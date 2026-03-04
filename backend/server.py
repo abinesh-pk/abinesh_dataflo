@@ -304,16 +304,19 @@ async def summarize_transcript(req: SummarizeRequest):
         )
 
         prompt = (
-            "You are an expert summarizer. Given the following transcript from a video, "
-            "produce a clear and concise summary.\n\n"
-            "Your summary should include:\n"
-            "1. A brief overview (2-3 sentences) of what the video is about.\n"
-            "2. Key topics discussed.\n"
-            "3. Important points, decisions, or action items mentioned.\n"
-            "4. Any notable quotes or statements.\n\n"
-            "Keep the summary informative yet concise. Use bullet points where appropriate.\n\n"
+            "You are an expert analyst. Given the following transcript from a video or stream, "
+            "provide a detailed, analytical summary of the content.\n\n"
+            "Your response must include the following sections:\n"
+            "1. **Executive Summary**: A brief, 2-3 sentence overview of the core subject matter.\n"
+            "2. **Detailed Analytics**:\n"
+            "   - **Sentiment & Tone**: Describe the general sentiment (e.g., formal, casual, stressed, enthusiastic) and if it changes over time.\n"
+            "   - **Speaker Dynamics**: If multiple speakers are identified (e.g., [Speaker 0], [Speaker 1]), describe their interaction, roles, or relative speaking time. If only one speaker, describe their delivery style.\n"
+            "   - **Key Topics & Themes**: A bulleted list of the major topics discussed.\n"
+            "3. **Actionable Insights**: Any concrete decisions made, lessons learned, or actionable takeaways.\n"
+            "4. **Notable Quotes**: 1-2 important quotes from the transcript that highlight a key moment.\n\n"
+            "Be detailed and professional in your analysis.\n\n"
             f"--- TRANSCRIPT ---\n{transcript}\n--- END TRANSCRIPT ---\n\n"
-            "Summary:"
+            "Analytical Summary:"
         )
 
         response = llm.invoke(prompt)

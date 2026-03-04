@@ -76,7 +76,15 @@ export default function SourcePanel({
       if (!source) return;
       onConnect(source, kw, true, null, null, language);
     }
-  }, [srcType, selectedFile, urlValue, parseKeywords, onConnect, uploadFile]);
+  }, [
+    srcType,
+    selectedFile,
+    urlValue,
+    language,
+    parseKeywords,
+    onConnect,
+    uploadFile,
+  ]);
 
   const handleUpdateKeywords = useCallback(() => {
     const kw = parseKeywords();

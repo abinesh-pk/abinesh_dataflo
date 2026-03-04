@@ -1,5 +1,5 @@
-import { forwardRef, useEffect, useRef, useState } from 'react';
-import Hls from 'hls.js';
+import { forwardRef, useEffect, useRef, useState } from "react";
+import Hls from "hls.js";
 
 function extractYouTubeId(url) {
   const m = url.match(
@@ -8,12 +8,18 @@ function extractYouTubeId(url) {
   return m ? m[1] : null;
 }
 
+function extractTwitchChannel(url) {
+  const m = url.match(/twitch\.tv\/([a-zA-Z0-9_]+)/i);
+  return m ? m[1] : null;
+}
+
 function detectStreamType(url) {
   if (!url) return null;
-  if (extractYouTubeId(url)) return 'youtube';
-  if (/\.m3u8(\?|$)/i.test(url) || url.includes('m3u8')) return 'hls';
-  if (url.startsWith('rtmp://')) return 'rtmp';
-  return 'unknown';
+  if (extractYouTubeId(url)) return "youtube";
+  if (extractTwitchChannel(url)) return "twitch";
+  if (/\.m3u8(\?|$)/i.test(url) || url.includes("m3u8")) return "hls";
+  if (url.startsWith("rtmp://")) return "rtmp";
+  return "unknown";
 }
 
 const YouTubePlayer = ({ videoId }) => (
@@ -22,11 +28,33 @@ const YouTubePlayer = ({ videoId }) => (
     title="Live Stream"
     allow="autoplay; encrypted-media; picture-in-picture"
     allowFullScreen
-    style={{ width: '100%', aspectRatio: '16/9', border: 'none', borderRadius: '8px' }}
+    style={{
+      width: "100%",
+      aspectRatio: "16/9",
+      border: "none",
+      borderRadius: "8px",
+    }}
   />
 );
 
-const HlsPlayer = forwardRef(function HlsPlayer({ url, onPlay, onPause, onSeeked }, ref) {
+const TwitchPlayer = ({ channel }) => (
+  <iframe
+    src={`https://player.twitch.tv/?channel=${channel}&parent=${window.location.hostname}&autoplay=true&muted=false`}
+    title="Twitch Stream"
+    allowFullScreen
+    style={{
+      width: "100%",
+      aspectRatio: "16/9",
+      border: "none",
+      borderRadius: "8px",
+    }}
+  />
+);
+
+const HlsPlayer = forwardRef(function HlsPlayer(
+  { url, onPlay, onPause, onSeeked },
+  ref,
+) {
   const hlsRef = useRef(null);
 
   useEffect(() => {
@@ -45,7 +73,7 @@ const HlsPlayer = forwardRef(function HlsPlayer({ url, onPlay, onPause, onSeeked
       };
     }
 
-    if (vid.canPlayType('application/vnd.apple.mpegurl')) {
+    if (vid.canPlayType("application/vnd.apple.mpegurl")) {
       vid.src = url;
       vid.play().catch(() => {});
     }
@@ -54,55 +82,64 @@ const HlsPlayer = forwardRef(function HlsPlayer({ url, onPlay, onPause, onSeeked
   useEffect(() => {
     const vid = ref.current;
     if (!vid) return;
-    vid.addEventListener('play', onPlay);
-    vid.addEventListener('pause', onPause);
-    vid.addEventListener('seeked', onSeeked);
+    vid.addEventListener("play", onPlay);
+    vid.addEventListener("pause", onPause);
+    vid.addEventListener("seeked", onSeeked);
     return () => {
-      vid.removeEventListener('play', onPlay);
-      vid.removeEventListener('pause', onPause);
-      vid.removeEventListener('seeked', onSeeked);
+      vid.removeEventListener("play", onPlay);
+      vid.removeEventListener("pause", onPause);
+      vid.removeEventListener("seeked", onSeeked);
     };
   }, [ref, onPlay, onPause, onSeeked]);
 
-  return <video ref={ref} controls style={{ width: '100%', borderRadius: '8px' }} />;
+  return (
+    <video ref={ref} controls style={{ width: "100%", borderRadius: "8px" }} />
+  );
 });
 
 const RtmpFallback = () => (
   <div
     style={{
-      width: '100%',
-      aspectRatio: '16/9',
-      background: '#1a1a2e',
-      borderRadius: '8px',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      color: '#aaa',
-      gap: '8px',
+      width: "100%",
+      aspectRatio: "16/9",
+      background: "#1a1a2e",
+      borderRadius: "8px",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center",
+      color: "#aaa",
+      gap: "8px",
     }}
   >
-    <span style={{ fontSize: '2rem' }}>{'\uD83C\uDF99\uFE0F'}</span>
+    <span style={{ fontSize: "2rem" }}>{"\uD83C\uDF99\uFE0F"}</span>
     <span>RTMP video preview not available in browser</span>
-    <span style={{ fontSize: '0.85rem', color: '#777' }}>Audio transcription is active</span>
+    <span style={{ fontSize: "0.85rem", color: "#777" }}>
+      Audio transcription is active
+    </span>
   </div>
 );
 
-const LocalVideo = forwardRef(function LocalVideo({ onPlay, onPause, onSeeked }, ref) {
+const LocalVideo = forwardRef(function LocalVideo(
+  { onPlay, onPause, onSeeked },
+  ref,
+) {
   useEffect(() => {
     const vid = ref.current;
     if (!vid) return;
-    vid.addEventListener('play', onPlay);
-    vid.addEventListener('pause', onPause);
-    vid.addEventListener('seeked', onSeeked);
+    vid.addEventListener("play", onPlay);
+    vid.addEventListener("pause", onPause);
+    vid.addEventListener("seeked", onSeeked);
     return () => {
-      vid.removeEventListener('play', onPlay);
-      vid.removeEventListener('pause', onPause);
-      vid.removeEventListener('seeked', onSeeked);
+      vid.removeEventListener("play", onPlay);
+      vid.removeEventListener("pause", onPause);
+      vid.removeEventListener("seeked", onSeeked);
     };
   }, [ref, onPlay, onPause, onSeeked]);
 
-  return <video ref={ref} controls style={{ width: '100%', borderRadius: '8px' }} />;
+  return (
+    <video ref={ref} controls style={{ width: "100%", borderRadius: "8px" }} />
+  );
 });
 
 const VideoPlayer = forwardRef(function VideoPlayer(
@@ -110,26 +147,42 @@ const VideoPlayer = forwardRef(function VideoPlayer(
   ref,
 ) {
   const streamType = detectStreamType(streamSource);
-  const youtubeId = streamType === 'youtube' ? extractYouTubeId(streamSource) : null;
+  const youtubeId =
+    streamType === "youtube" ? extractYouTubeId(streamSource) : null;
+  const twitchChannel =
+    streamType === "twitch" ? extractTwitchChannel(streamSource) : null;
 
   let player;
   if (youtubeId) {
     player = <YouTubePlayer videoId={youtubeId} />;
-  } else if (streamType === 'hls') {
+  } else if (twitchChannel) {
+    player = <TwitchPlayer channel={twitchChannel} />;
+  } else if (streamType === "hls") {
     player = (
-      <HlsPlayer ref={ref} url={streamSource} onPlay={onPlay} onPause={onPause} onSeeked={onSeeked} />
+      <HlsPlayer
+        ref={ref}
+        url={streamSource}
+        onPlay={onPlay}
+        onPause={onPause}
+        onSeeked={onSeeked}
+      />
     );
-  } else if (streamType === 'rtmp') {
+  } else if (streamType === "rtmp") {
     player = <RtmpFallback />;
   } else {
     player = (
-      <LocalVideo ref={ref} onPlay={onPlay} onPause={onPause} onSeeked={onSeeked} />
+      <LocalVideo
+        ref={ref}
+        onPlay={onPlay}
+        onPause={onPause}
+        onSeeked={onSeeked}
+      />
     );
   }
 
   return (
     <div className="video-col">
-      <h2>{'\uD83C\uDFAC'} Video</h2>
+      <h2>{"\uD83C\uDFAC"} Video</h2>
       {player}
     </div>
   );

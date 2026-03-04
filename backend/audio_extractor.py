@@ -7,8 +7,8 @@ import threading
 from config import SAMPLE_RATE, CHANNELS, CHUNK_SIZE
 
 
-def _is_youtube_url(source: str) -> bool:
-    return bool(re.search(r"(youtube\.com|youtu\.be)", source, re.IGNORECASE))
+def _is_ydl_supported_url(source: str) -> bool:
+    return bool(re.search(r"(youtube\.com|youtu\.be|twitch\.tv)", source, re.IGNORECASE))
 
 
 def _detect_source_type(source: str) -> str:
@@ -18,8 +18,8 @@ def _detect_source_type(source: str) -> str:
         return "hls"
     if source in ("webcam", "0", "/dev/video0"):
         return "webcam"
-    if _is_youtube_url(source):
-        return "youtube"
+    if _is_ydl_supported_url(source):
+        return "ydl_supported"
     return "file"
 
 
@@ -104,12 +104,12 @@ async def start_ffmpeg(source: str) -> tuple[subprocess.Popen, subprocess.Popen 
     For YouTube sources, a yt-dlp subprocess pipes video data into FFmpeg's stdin
     so yt-dlp manages the YouTube session and token refresh internally.
 
-    Returns (ffmpeg_process, ydl_process) — ydl_process is None for non-YouTube sources.
+    Returns (ffmpeg_process, ydl_process) — ydl_process is None for unsupported sources.
     """
     source_type = _detect_source_type(source)
     ydl_process = None
 
-    if source_type == "youtube":
+    if source_type == "ydl_supported":
         ydl_process = _start_ydl_pipe(source)
         input_args = ["-i", "pipe:0"]
         stdin = ydl_process.stdout
