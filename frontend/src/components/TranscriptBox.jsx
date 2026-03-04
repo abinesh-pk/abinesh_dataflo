@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { API_BASE } from "../config.js";
 
 const SPEAKER_COLORS = [
@@ -22,7 +22,7 @@ function speakerLabel(speaker) {
   );
 }
 
-export default function TranscriptBox({ transcripts, interimText }) {
+export default function TranscriptBox({ transcripts, interimText, connected }) {
   const boxRef = useRef(null);
   const [summary, setSummary] = useState("");
   const [loading, setLoading] = useState(false);
@@ -33,6 +33,13 @@ export default function TranscriptBox({ transcripts, interimText }) {
       boxRef.current.scrollTop = boxRef.current.scrollHeight;
     }
   }, [transcripts, interimText]);
+
+  useEffect(() => {
+    if (!connected || transcripts.length === 0) {
+      setSummary("");
+      setError("");
+    }
+  }, [connected, transcripts.length]);
 
   const empty = transcripts.length === 0 && !interimText;
 
@@ -98,7 +105,16 @@ export default function TranscriptBox({ transcripts, interimText }) {
 
       {summary && (
         <div className="summary-box">
-          <h3>{"\uD83D\uDCCB"} Summary</h3>
+          <div className="summary-header">
+            <h3>{"\uD83D\uDCCB"} Summary</h3>
+            <button
+              className="btn-close"
+              onClick={() => setSummary("")}
+              title="Close Summary"
+            >
+              &times;
+            </button>
+          </div>
           <div className="summary-content">{summary}</div>
         </div>
       )}

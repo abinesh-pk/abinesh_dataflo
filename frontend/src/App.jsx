@@ -54,17 +54,22 @@ export default function App() {
           onStop={handleStop}
           onUpdateKeywords={updateKeywords}
         />
-        <VideoPlayer
-          ref={videoRef}
-          onPlay={onPlay}
-          onPause={onPause}
-          onSeeked={onSeeked}
-          streamSource={liveSource}
+        <div className="center-col">
+          <VideoPlayer
+            ref={videoRef}
+            onPlay={onPlay}
+            onPause={onPause}
+            onSeeked={onSeeked}
+            streamSource={liveSource}
+          />
+          <AlertsSection alerts={alerts} onAlertClick={seekTo} />
+        </div>
+        <TranscriptBox
+          transcripts={transcripts}
+          interimText={interimText}
+          connected={connected}
         />
-        <TranscriptBox transcripts={transcripts} interimText={interimText} />
       </div>
-
-      <AlertsSection alerts={alerts} onAlertClick={seekTo} />
     </>
   );
 }
