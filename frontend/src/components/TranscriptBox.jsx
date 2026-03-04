@@ -22,11 +22,19 @@ function speakerLabel(speaker) {
   );
 }
 
-export default function TranscriptBox({ transcripts, interimText, connected }) {
+export default function TranscriptBox({
+  transcripts,
+  interimText,
+  connected,
+  language,
+}) {
   const boxRef = useRef(null);
   const [summary, setSummary] = useState("");
+  const [translation, setTranslation] = useState("");
   const [loading, setLoading] = useState(false);
+  const [translating, setTranslating] = useState(false);
   const [error, setError] = useState("");
+  const [translationError, setTranslationError] = useState("");
 
   useEffect(() => {
     if (boxRef.current) {
@@ -37,7 +45,9 @@ export default function TranscriptBox({ transcripts, interimText, connected }) {
   useEffect(() => {
     if (!connected || transcripts.length === 0) {
       setSummary("");
+      setTranslation("");
       setError("");
+      setTranslationError("");
     }
   }, [connected, transcripts.length]);
 
@@ -70,6 +80,33 @@ export default function TranscriptBox({ transcripts, interimText, connected }) {
     }
   };
 
+  const handleTranslate = async () => {
+    const fullText = transcripts.map((t) => t.text).join("\n");
+    if (!fullText.trim()) return;
+
+    setTranslating(true);
+    setTranslationError("");
+    setTranslation("");
+
+    try {
+      const res = await fetch(`${API_BASE}/translate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ transcript: fullText }),
+      });
+      const data = await res.json();
+      if (data.error) {
+        setTranslationError(data.error);
+      } else {
+        setTranslation(data.translation);
+      }
+    } catch (e) {
+      setTranslationError("Failed to translate text");
+    } finally {
+      setTranslating(false);
+    }
+  };
+
   return (
     <div className="transcript-col">
       <h2>{"\uD83D\uDCDD"} Live Transcript</h2>
@@ -91,6 +128,16 @@ export default function TranscriptBox({ transcripts, interimText, connected }) {
         )}
       </div>
 
+      {transcripts.length > 0 && language !== "en-US" && (
+        <button
+          className="btn btn-translate"
+          onClick={handleTranslate}
+          disabled={translating}
+        >
+          {translating ? "⏳ Translating..." : "🌐 Translate to English"}
+        </button>
+      )}
+
       {transcripts.length > 0 && (
         <button
           className="btn btn-summary"
@@ -101,7 +148,26 @@ export default function TranscriptBox({ transcripts, interimText, connected }) {
         </button>
       )}
 
+      {translationError && (
+        <div className="summary-error">{translationError}</div>
+      )}
       {error && <div className="summary-error">{error}</div>}
+
+      {translation && (
+        <div className="summary-box">
+          <div className="summary-header">
+            <h3>🌐 English Translation</h3>
+            <button
+              className="btn-close"
+              onClick={() => setTranslation("")}
+              title="Close Translation"
+            >
+              &times;
+            </button>
+          </div>
+          <div className="summary-content">{translation}</div>
+        </div>
+      )}
 
       {summary && (
         <div className="summary-box">

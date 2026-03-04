@@ -128,17 +128,50 @@ async def websocket_endpoint(ws: WebSocket):
             msg_out["speaker"] = speaker
         await _send(msg_out)
 
-        if is_final:
-            transcript_history.append({"text": text, "start": start_time})
-            for m in check_keywords(text, keywords):
-                await _send({
-                    "type": "alert",
-                    "keyword": m["keyword"],
-                    "timestamp": _format_timestamp(start_time),
-                    "start": start_time,
-                    "context": text,
-                    "match_type": m["match_type"],
-                })
+        if is_final and text.strip():
+            entry = {"text": text, "start": start_time}
+            transcript_history.append(entry)
+            
+            async def _check_and_alert(target_text: str, context_text: str):
+                for m in check_keywords(target_text, keywords):
+                    await _send({
+                        "type": "alert",
+                        "keyword": m["keyword"],
+                        "timestamp": _format_timestamp(start_time),
+                        "start": start_time,
+                        "context": context_text,
+                        "match_type": m["match_type"],
+                    })
+
+            if language and language != "en-US" and keywords:
+                async def _translate_and_check():
+                    try:
+                        import asyncio
+                        from langchain_groq import ChatGroq
+                        from config import GROQ_API_KEY
+                        if not GROQ_API_KEY:
+                            return
+                        llm = ChatGroq(
+                            model="llama-3.3-70b-versatile",
+                            api_key=GROQ_API_KEY,
+                            temperature=0.0,
+                        )
+                        prompt = (
+                            "Translate the following text to English. "
+                            "Output ONLY the translated text, nothing else.\n\n"
+                            f"Text: {text}"
+                        )
+                        response = await asyncio.to_thread(llm.invoke, prompt)
+                        translated = response.content.strip()
+                        entry["translated_text"] = translated
+                        display_context = f"{translated}\n(Original: {text})"
+                        await _check_and_alert(translated, display_context)
+                    except Exception as e:
+                        print(f"[server] RT Translation Error: {e}")
+                
+                asyncio.create_task(_translate_and_check())
+            else:
+                await _check_and_alert(text, text)
 
     async def run_pipeline():
         try:
@@ -242,13 +275,16 @@ async def websocket_endpoint(ws: WebSocket):
                 if added and transcript_history:
                     print(f"[server] Re-scanning {len(transcript_history)} past transcripts for new keywords: {added}")
                     for entry in transcript_history:
-                        for m in check_keywords(entry["text"], added):
+                        target_text = entry.get("translated_text", entry["text"])
+                        context_text = f"{target_text}\n(Original: {entry['text']})" if "translated_text" in entry else entry["text"]
+
+                        for m in check_keywords(target_text, added):
                             await _send({
                                 "type": "alert",
                                 "keyword": m["keyword"],
                                 "timestamp": _format_timestamp(entry["start"]),
                                 "start": entry["start"],
-                                "context": entry["text"],
+                                "context": context_text,
                                 "match_type": m["match_type"],
                             })
 
@@ -321,6 +357,41 @@ async def summarize_transcript(req: SummarizeRequest):
 
         response = llm.invoke(prompt)
         return {"summary": response.content}
+    except Exception as e:
+        traceback.print_exc()
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.post("/translate")
+async def translate_transcript(req: SummarizeRequest):
+    if not GROQ_API_KEY:
+        return JSONResponse({"error": "GROQ_API_KEY not set"}, status_code=500)
+
+    transcript = req.transcript.strip()
+    if not transcript:
+        return JSONResponse({"error": "No transcript provided"}, status_code=400)
+
+    try:
+        from langchain_groq import ChatGroq
+
+        llm = ChatGroq(
+            model="llama-3.3-70b-versatile",
+            api_key=GROQ_API_KEY,
+            temperature=0.1,
+        )
+
+        prompt = (
+            "You are an expert, professional translator. Your sole purpose is to translate the provided text into English.\n\n"
+            "CRITICAL INSTRUCTIONS:\n"
+            "1. ONLY output the translated English text.\n"
+            "2. DO NOT add any extra conversational AI fluff like 'Here is the translation' or 'Sure, I can help'.\n"
+            "3. DO NOT provide analysis, sentiment matching, or descriptions of the text.\n"
+            "4. If there are multiple speakers indicated by [Speaker X], maintain those tags exactly as they appear.\n\n"
+            f"--- TEXT TO TRANSLATE ---\n{transcript}\n--- END TEXT ---\n\n"
+        )
+
+        response = llm.invoke(prompt)
+        return {"translation": response.content.strip()}
     except Exception as e:
         traceback.print_exc()
         return JSONResponse({"error": str(e)}, status_code=500)

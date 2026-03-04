@@ -10,6 +10,7 @@ import useTranscription from "./hooks/useTranscription";
 export default function App() {
   const videoRef = useRef(null);
   const [liveSource, setLiveSource] = useState(null);
+  const [currentLanguage, setCurrentLanguage] = useState("en-US");
   const {
     transcripts,
     interimText,
@@ -28,6 +29,7 @@ export default function App() {
 
   const handleConnect = useCallback(
     (source, kw, isLiveStream, sessionId, file, language) => {
+      setCurrentLanguage(language || "en-US");
       setLiveSource(isLiveStream ? source : null);
       if (file && videoRef.current) {
         videoRef.current.src = URL.createObjectURL(file);
@@ -68,6 +70,7 @@ export default function App() {
           transcripts={transcripts}
           interimText={interimText}
           connected={connected}
+          language={currentLanguage}
         />
       </div>
     </>

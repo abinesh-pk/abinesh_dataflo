@@ -205,6 +205,28 @@ video {
   opacity: 0.5;
   cursor: not-allowed;
 }
+.btn-translate {
+  margin-top: 8px;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: linear-gradient(135deg, #00b4db, #0083b0);
+  color: #fff;
+  transition:
+    opacity 0.15s,
+    transform 0.1s;
+}
+.btn-translate:hover:not(:disabled) {
+  opacity: 0.9;
+  transform: scale(1.01);
+}
+.btn-translate:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 .summary-error {
   color: #ff5252;
   font-size: 0.85rem;
