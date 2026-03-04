@@ -28,7 +28,7 @@ from pydantic import BaseModel
 
 from transcriber import DeepgramTranscriber
 from keyword_monitor import check_keywords
-from alert_manager import _format_timestamp
+from alert_manager import _format_timestamp, send_email_alert
 from audio_extractor import start_ffmpeg_from_pipe
 from config import GROQ_API_KEY
 
@@ -94,6 +94,10 @@ async def upload_stream(file: UploadFile = File(...)):
     return {"session_id": session_id}
 
 
+# ---------- Email Alert Helper ----------
+
+
+
 @app.websocket("/ws")
 async def websocket_endpoint(ws: WebSocket):
     await ws.accept()
@@ -101,6 +105,7 @@ async def websocket_endpoint(ws: WebSocket):
     source: str | None = None
     keywords: list[str] = []
     transcript_history: list[dict] = []
+    alert_email: str | None = None
     pause_event = asyncio.Event()
     task: asyncio.Task | None = None
     transcriber: DeepgramTranscriber | None = None
@@ -142,6 +147,12 @@ async def websocket_endpoint(ws: WebSocket):
                         "context": context_text,
                         "match_type": m["match_type"],
                     })
+                    if alert_email:
+                        asyncio.create_task(send_email_alert(
+                            alert_email, m["keyword"],
+                            _format_timestamp(start_time),
+                            context_text, m["match_type"],
+                        ))
 
             if language and language != "en-US" and keywords:
                 async def _translate_and_check():
@@ -207,6 +218,9 @@ async def websocket_endpoint(ws: WebSocket):
                 source = msg.get("source", "")
                 keywords = [k.strip() for k in msg.get("keywords", []) if k.strip()]
                 language = msg.get("language", "en-US")
+                alert_email = msg.get("alert_email", "").strip() or None
+                if alert_email:
+                    print(f"[server] Email alerts will be sent to: {alert_email}")
                 
                 # Trust is_live if it was explicitly sent by the latest frontend.
                 # If it's missing (outdated frontend cache), detect it from the source.

@@ -28,13 +28,13 @@ export default function App() {
   } = useTranscription(videoRef);
 
   const handleConnect = useCallback(
-    (source, kw, isLiveStream, sessionId, file, language) => {
+    (source, kw, isLiveStream, sessionId, file, language, alertEmail) => {
       setCurrentLanguage(language || "en-US");
       setLiveSource(isLiveStream ? source : null);
       if (file && videoRef.current) {
         videoRef.current.src = URL.createObjectURL(file);
       }
-      connect(source, kw, isLiveStream, sessionId, language);
+      connect(source, kw, isLiveStream, sessionId, language, alertEmail);
     },
     [connect],
   );

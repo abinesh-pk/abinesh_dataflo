@@ -15,6 +15,7 @@ export default function SourcePanel({
   const [language, setLanguage] = useState("en-US");
   const [uploadProgress, setUploadProgress] = useState(null);
   const [uploadError, setUploadError] = useState(null);
+  const [alertEmail, setAlertEmail] = useState("");
   const [notifStatus, setNotifStatus] = useState("default");
   const fileInputRef = useRef(null);
 
@@ -88,7 +89,15 @@ export default function SourcePanel({
       try {
         const data = await uploadFile(selectedFile);
         setUploadProgress(null);
-        onConnect("PIPE", kw, false, data.session_id, selectedFile, language);
+        onConnect(
+          "PIPE",
+          kw,
+          false,
+          data.session_id,
+          selectedFile,
+          language,
+          alertEmail,
+        );
       } catch (err) {
         setUploadProgress(null);
         setUploadError(err.message || "Upload failed");
@@ -96,7 +105,7 @@ export default function SourcePanel({
     } else {
       const source = urlValue.trim();
       if (!source) return;
-      onConnect(source, kw, true, null, null, language);
+      onConnect(source, kw, true, null, null, language, alertEmail);
     }
   }, [
     srcType,
@@ -104,8 +113,8 @@ export default function SourcePanel({
     urlValue,
     language,
     parseKeywords,
-    onConnect,
     uploadFile,
+    alertEmail,
   ]);
 
   const handleUpdateKeywords = useCallback(() => {
@@ -289,7 +298,19 @@ export default function SourcePanel({
               handleUpdateKeywords();
             }
           }}
-          onBlur={() => connected && handleUpdateKeywords()}
+        />
+      </div>
+
+      <hr className="divider" />
+
+      <label>ALERT NOTIFICATIONS</label>
+      <div className="input-with-icon">
+        <span>{"\u2709"}</span>
+        <input
+          type="email"
+          value={alertEmail}
+          onChange={(e) => setAlertEmail(e.target.value)}
+          placeholder="email@example.com for alerts"
         />
       </div>
 
@@ -298,7 +319,7 @@ export default function SourcePanel({
           display: "flex",
           flexDirection: "column",
           gap: "8px",
-          marginTop: "4px",
+          marginTop: "12px",
         }}
       >
         <button

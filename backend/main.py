@@ -23,11 +23,16 @@ def parse_args():
         required=True,
         help='Comma-separated keywords to monitor (e.g. "fire,alert,emergency")',
     )
+    parser.add_argument(
+        "--email",
+        help="Recipient email for alerts (optional)",
+    )
     return parser.parse_args()
 
 
 async def main():
     args = parse_args()
+    alert_email = args.email
 
     if not DEEPGRAM_API_KEY or DEEPGRAM_API_KEY == "your_key_here":
         print("Error: Set a valid DEEPGRAM_API_KEY in your .env file.")
@@ -40,6 +45,8 @@ async def main():
 
     print(f"[main] Source: {args.source}")
     print(f"[main] Keywords: {keywords}")
+    if alert_email:
+        print(f"[main] Alerts will be emailed to: {alert_email}")
     print("[main] Starting transcription... Press Ctrl+C to stop.\n")
 
     async def on_transcript(result: dict):
@@ -51,7 +58,14 @@ async def main():
 
         matches = check_keywords(text, keywords)
         for m in matches:
+            from alert_manager import send_email_alert, _format_timestamp
             print_alert(keyword=m["keyword"], timestamp=start, context=text)
+            if alert_email and is_final:
+                asyncio.create_task(send_email_alert(
+                    alert_email, m["keyword"],
+                    _format_timestamp(start),
+                    text, m["match_type"],
+                ))
 
     transcriber = DeepgramTranscriber(source=args.source, on_transcript=on_transcript)
 
