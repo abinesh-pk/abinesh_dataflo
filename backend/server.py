@@ -173,6 +173,19 @@ async def websocket_endpoint(ws: WebSocket):
 
                 source = msg.get("source", "")
                 keywords = [k.strip() for k in msg.get("keywords", []) if k.strip()]
+                language = msg.get("language", "auto")
+                
+                # Trust is_live if it was explicitly sent by the latest frontend.
+                # If it's missing (outdated frontend cache), detect it from the source.
+                is_live = msg.get("is_live")
+                if is_live is None:
+                    from audio_extractor import _detect_source_type
+                    is_live = _detect_source_type(source) != "file" and source != "PIPE"
+
+                from config import BATCH_SPEED_FACTOR
+                speed_factor = 1.0 if is_live else BATCH_SPEED_FACTOR
+                print(f"[server] Connecting... source='{source}', is_live={is_live}, speed_factor={speed_factor}, lang='{language}'")
+
                 transcript_history.clear()
                 pause_event.clear()
 
@@ -189,6 +202,8 @@ async def websocket_endpoint(ws: WebSocket):
                     on_transcript=on_transcript,
                     pause_event=pause_event,
                     pipe_data=pipe_data,
+                    speed_factor=speed_factor,
+                    language=language,
                 )
                 try:
                     await transcriber.pre_connect()

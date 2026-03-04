@@ -27,12 +27,12 @@ export default function App() {
   } = useTranscription(videoRef);
 
   const handleConnect = useCallback(
-    (source, kw, isLiveStream, sessionId, file) => {
+    (source, kw, isLiveStream, sessionId, file, language) => {
       setLiveSource(isLiveStream ? source : null);
       if (file && videoRef.current) {
         videoRef.current.src = URL.createObjectURL(file);
       }
-      connect(source, kw, isLiveStream, sessionId);
+      connect(source, kw, isLiveStream, sessionId, language);
     },
     [connect],
   );

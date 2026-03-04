@@ -37,11 +37,13 @@ class DeepgramTranscriber:
         speed_factor: float = BATCH_SPEED_FACTOR,
         ffmpeg_process: subprocess.Popen | None = None,
         pipe_data: bytes | None = None,
+        language: str = "en",
     ):
         self.source = source
         self.on_transcript = on_transcript
         self._pause_event = pause_event
         self._speed_factor = speed_factor
+        self.language = language
         self._ws = None
         self._ffmpeg_process = ffmpeg_process
         self._pipe_data = pipe_data
@@ -131,14 +133,22 @@ class DeepgramTranscriber:
 
     async def _connect_deepgram(self):
         extra_headers = {"Authorization": f"Token {DEEPGRAM_API_KEY}"}
+        
+        # Build dynamic URL based on language
+        url = DEEPGRAM_WS_URL
+        if self.language == "auto":
+            url += "&detect_language=true"
+        else:
+            url += f"&language={self.language}"
+            
         self._ws = await websockets.connect(
-            DEEPGRAM_WS_URL,
+            url,
             additional_headers=extra_headers,
             ping_interval=20,
             ping_timeout=60,
             close_timeout=10,
         )
-        print("[transcriber] Connected to Deepgram.")
+        print(f"[transcriber] Connected to Deepgram (lang={self.language}).")
 
     async def _send_audio(self):
         """Read PCM chunks from FFmpeg and forward them as binary WS frames."""

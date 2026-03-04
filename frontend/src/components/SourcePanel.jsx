@@ -12,6 +12,7 @@ export default function SourcePanel({
   const [selectedFile, setSelectedFile] = useState(null);
   const [urlValue, setUrlValue] = useState("");
   const [keywords, setKeywords] = useState("");
+  const [language, setLanguage] = useState("auto");
   const [uploadProgress, setUploadProgress] = useState(null);
   const [uploadError, setUploadError] = useState(null);
   const fileInputRef = useRef(null);
@@ -65,7 +66,7 @@ export default function SourcePanel({
       try {
         const data = await uploadFile(selectedFile);
         setUploadProgress(null);
-        onConnect("PIPE", kw, false, data.session_id, selectedFile);
+        onConnect("PIPE", kw, false, data.session_id, selectedFile, language);
       } catch (err) {
         setUploadProgress(null);
         setUploadError(err.message || "Upload failed");
@@ -73,7 +74,7 @@ export default function SourcePanel({
     } else {
       const source = urlValue.trim();
       if (!source) return;
-      onConnect(source, kw, true, null, null);
+      onConnect(source, kw, true, null, null, language);
     }
   }, [srcType, selectedFile, urlValue, parseKeywords, onConnect, uploadFile]);
 
@@ -192,6 +193,33 @@ export default function SourcePanel({
           placeholder="rtmp://... or .m3u8 or YouTube"
         />
       )}
+
+      <label>Language</label>
+      <select
+        value={language}
+        onChange={(e) => setLanguage(e.target.value)}
+        style={{
+          width: "100%",
+          padding: "8px",
+          background: "#222",
+          color: "#fff",
+          border: "1px solid #444",
+          borderRadius: "4px",
+          marginBottom: "12px",
+        }}
+      >
+        <option value="auto">Auto-detect</option>
+        <option value="en">English</option>
+        <option value="es">Spanish</option>
+        <option value="fr">French</option>
+        <option value="de">German</option>
+        <option value="hi">Hindi</option>
+        <option value="pt">Portuguese</option>
+        <option value="it">Italian</option>
+        <option value="ja">Japanese</option>
+        <option value="ko">Korean</option>
+        <option value="zh">Chinese</option>
+      </select>
 
       <label>Keywords</label>
       <div style={{ display: "flex", gap: "6px" }}>
