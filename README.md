@@ -2,7 +2,7 @@
 
 A powerful, real-time transcription platform that monitors audio streams and files for specific keywords, providing instant alerts and a persistent session history.
 
-## Features
+## Live Transcript
 
 - **Real-time Transcription**: Powered by Deepgram's Nova-2 model for high-accuracy, low-latency speech-to-text.
 - **Multi-Source Support**:
