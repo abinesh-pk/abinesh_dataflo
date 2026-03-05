@@ -727,9 +727,9 @@ video {
   flex: 1;
   font-size: 0.72rem;
   padding: 8px;
-  background: var(--bg-primary);
-  color: var(--text-primary);
-  border: 1px solid var(--border-light);
+  background: var(--accent-blue);
+  color: #fff;
+  border: 1px solid var(--accent-blue);
   font-family: var(--font-sans);
   font-weight: 600;
   text-transform: uppercase;
@@ -740,8 +740,8 @@ video {
 }
 .btn-summary:hover:not(:disabled),
 .btn-translate:hover:not(:disabled) {
-  border-color: var(--accent-blue);
-  color: var(--accent-blue);
+  filter: brightness(1.1);
+  box-shadow: 0 2px 8px rgba(26, 86, 219, 0.3);
 }
 .btn-summary:disabled,
 .btn-translate:disabled {

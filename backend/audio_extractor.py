@@ -60,12 +60,21 @@ def _start_ydl_pipe(source: str) -> subprocess.Popen:
     """Launch yt-dlp streaming audio to stdout so it manages token refresh internally.
     Uses bestaudio to avoid video muxer crashes on HLS discontinuities (YouTube ad breaks)."""
     proxy = os.getenv("RESIDENTIAL_PROXY")
+    cookies_path = os.getenv("YOUTUBE_COOKIES_PATH", "./cookies.txt")
     is_youtube = "youtube.com" in source.lower() or "youtu.be" in source.lower()
 
     cmd = ["yt-dlp", "-f", "bestaudio/best", "--no-part", "-o", "-", source]
-    if is_youtube and proxy:
-        cmd.extend(["--proxy", proxy])
-        print(f"[audio] Using proxy for YouTube source: {proxy}")
+    
+    if is_youtube:
+        if proxy:
+            cmd.extend(["--proxy", proxy])
+            print(f"[audio] Using proxy for YouTube source: {proxy}")
+        
+        if os.path.exists(cookies_path):
+            cmd.extend(["--cookies", cookies_path])
+            print(f"[audio] Using cookies file: {cookies_path}")
+        else:
+            print(f"[audio] No cookies file found, running without cookies.")
 
     process = subprocess.Popen(
         cmd,
