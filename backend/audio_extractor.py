@@ -1,4 +1,5 @@
 import asyncio
+import os
 import re
 import shutil
 import subprocess
@@ -58,7 +59,14 @@ def _drain_stderr(process: subprocess.Popen, label: str = "ffmpeg"):
 def _start_ydl_pipe(source: str) -> subprocess.Popen:
     """Launch yt-dlp streaming audio to stdout so it manages token refresh internally.
     Uses bestaudio to avoid video muxer crashes on HLS discontinuities (YouTube ad breaks)."""
+    proxy = os.getenv("RESIDENTIAL_PROXY")
+    is_youtube = "youtube.com" in source.lower() or "youtu.be" in source.lower()
+
     cmd = ["yt-dlp", "-f", "bestaudio/best", "--no-part", "-o", "-", source]
+    if is_youtube and proxy:
+        cmd.extend(["--proxy", proxy])
+        print(f"[audio] Using proxy for YouTube source: {proxy}")
+
     process = subprocess.Popen(
         cmd,
         stdout=subprocess.PIPE,
