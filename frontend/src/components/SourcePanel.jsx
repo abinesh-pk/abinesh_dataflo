@@ -244,7 +244,7 @@ export default function SourcePanel({
             type="text"
             value={urlValue}
             onChange={(e) => setUrlValue(e.target.value)}
-            placeholder="rtmp://... or .m3u8 or YouTube URL"
+            placeholder="rtmp://... or .m3u8"
           />
         </div>
       )}

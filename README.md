@@ -6,7 +6,7 @@ A powerful, real-time transcription platform that monitors audio streams and fil
 
 - **Real-time Transcription**: Powered by Deepgram's Nova-2 model for high-accuracy, low-latency speech-to-text.
 - **Multi-Source Support**:
-  - Stream directly from URLs (YouTube, Twitch, etc.) via `yt-dlp`.
+  - Stream directly from URLs (HLS, m3u8, etc.) via `yt-dlp`.
   - Upload and transcribe local media files.
 - **Smart Keyword Monitoring**:
   - Real-time keyword spotting with fuzzy matching (`rapidfuzz`).

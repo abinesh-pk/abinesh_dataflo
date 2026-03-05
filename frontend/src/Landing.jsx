@@ -109,7 +109,7 @@ const Landing = () => {
             Open Live App →
           </button>
           <div className="trust-indicators">
-            <div className="trust-item">✓ YouTube Live & Twitch supported</div>
+            <div className="trust-item">✓ HLS & m3u8 supported</div>
             <div className="trust-item">✓ 30+ languages</div>
             <div className="trust-item">✓ Instant keyword alerts</div>
           </div>
@@ -120,7 +120,6 @@ const Landing = () => {
             alt="Live Transcript App Mockup"
             className="mockup-img"
           />
-          
         </div>
       </section>
 
@@ -253,7 +252,7 @@ const Landing = () => {
               num: "01",
               icon: "🔗",
               title: "Connect the Session",
-              desc: "Upload local session recordings or paste any live stream URL — Assembly Live, YouTube, or HLS feeds",
+              desc: "Upload local session recordings or paste any live stream URL — Assembly Live or HLS feeds",
             },
             {
               num: "02",
