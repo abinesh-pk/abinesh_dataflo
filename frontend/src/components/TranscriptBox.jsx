@@ -27,8 +27,10 @@ export default function TranscriptBox({
   interimText,
   connected,
   language,
+  onSeek,
 }) {
   const boxRef = useRef(null);
+  const resultRefs = useRef([]);
   const [summary, setSummary] = useState("");
   const [translation, setTranslation] = useState("");
   const [loading, setLoading] = useState(false);
@@ -36,11 +38,14 @@ export default function TranscriptBox({
   const [error, setError] = useState("");
   const [translationError, setTranslationError] = useState("");
 
+  const [searchTerm, setSearchTerm] = useState("");
+  const [focusedIndex, setFocusedIndex] = useState(null);
+
   useEffect(() => {
-    if (boxRef.current) {
+    if (boxRef.current && !searchTerm) {
       boxRef.current.scrollTop = boxRef.current.scrollHeight;
     }
-  }, [transcripts, interimText]);
+  }, [transcripts, interimText, searchTerm]);
 
   useEffect(() => {
     if (!connected || transcripts.length === 0) {
@@ -48,6 +53,8 @@ export default function TranscriptBox({
       setTranslation("");
       setError("");
       setTranslationError("");
+      setSearchTerm("");
+      setFocusedIndex(null);
     }
   }, [connected, transcripts.length]);
 
@@ -112,6 +119,59 @@ export default function TranscriptBox({
     0,
   );
 
+  // Search Logic
+  const matches = (text) => {
+    if (!searchTerm || searchTerm.length < 2) return false;
+    return text.toLowerCase().includes(searchTerm.toLowerCase());
+  };
+
+  const matchingIndices = transcripts
+    .map((t, i) => (matches(t.text) ? i : null))
+    .filter((v) => v !== null);
+
+  const handleSeekToResult = (index) => {
+    const t = transcripts[index];
+    if (t && onSeek) {
+      onSeek(t.start);
+      setFocusedIndex(index);
+      resultRefs.current[index]?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    }
+  };
+
+  const nextResult = () => {
+    if (matchingIndices.length === 0) return;
+    const currentPos = matchingIndices.indexOf(focusedIndex);
+    const nextIdx = matchingIndices[(currentPos + 1) % matchingIndices.length];
+    handleSeekToResult(nextIdx);
+  };
+
+  const prevResult = () => {
+    if (matchingIndices.length === 0) return;
+    const currentPos = matchingIndices.indexOf(focusedIndex);
+    const prevIdx =
+      matchingIndices[
+        (currentPos - 1 + matchingIndices.length) % matchingIndices.length
+      ];
+    handleSeekToResult(prevIdx);
+  };
+
+  const highlightText = (text, term) => {
+    if (!term || term.length < 2) return text;
+    const parts = text.split(new RegExp(`(${term})`, "gi"));
+    return parts.map((part, i) =>
+      part.toLowerCase() === term.toLowerCase() ? (
+        <mark key={i} className="search-highlight">
+          {part}
+        </mark>
+      ) : (
+        part
+      ),
+    );
+  };
+
   return (
     <div className="transcript-col">
       <div className="caption-header">
@@ -125,6 +185,45 @@ export default function TranscriptBox({
 
       <div className={`status-strip ${connected ? "receiving" : "idle"}`}>
         {connected ? "● RECEIVING" : "● IDLE"}
+      </div>
+
+      <div className="search-container">
+        <div className="search-input-wrapper">
+          <span className="search-icon">🔍</span>
+          <input
+            type="text"
+            placeholder="Search transcript..."
+            value={searchTerm}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setFocusedIndex(null);
+            }}
+          />
+          {searchTerm && (
+            <button className="btn-clear" onClick={() => setSearchTerm("")}>
+              &times;
+            </button>
+          )}
+        </div>
+        {searchTerm.length >= 2 && (
+          <div className="search-nav">
+            <span className="match-count">
+              {matchingIndices.length > 0
+                ? `${matchingIndices.length} matches`
+                : "No matches"}
+            </span>
+            {matchingIndices.length > 0 && (
+              <div className="nav-arrows">
+                <button onClick={prevResult} title="Previous">
+                  ▲
+                </button>
+                <button onClick={nextResult} title="Next">
+                  ▼
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="transcript-box" ref={boxRef}>
@@ -144,14 +243,23 @@ export default function TranscriptBox({
             AWAITING SIGNAL...
           </div>
         )}
-        {transcripts.map((t, i) => (
-          <div key={i} className="t-final">
-            <span className="t-ts">[{t.timestamp}]</span>
-            <span className="t-text">
-              {speakerLabel(t.speaker)} {t.text}
-            </span>
-          </div>
-        ))}
+        {transcripts.map((t, i) => {
+          const isMatched = matches(t.text);
+          const isFocused = focusedIndex === i;
+          return (
+            <div
+              key={i}
+              ref={(el) => (resultRefs.current[i] = el)}
+              className={`t-final ${isMatched ? "matched" : ""} ${isFocused ? "focused" : ""}`}
+              onClick={() => isMatched && handleSeekToResult(i)}
+            >
+              <span className="t-ts">[{t.timestamp}]</span>
+              <span className="t-text">
+                {speakerLabel(t.speaker)} {highlightText(t.text, searchTerm)}
+              </span>
+            </div>
+          );
+        })}
         {interimText && <div className="t-interim">{interimText.text}</div>}
       </div>
 

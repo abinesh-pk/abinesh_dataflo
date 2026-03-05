@@ -796,6 +796,102 @@ video {
   font-family: var(--font-sans);
 }
 
+/* ─── Transcript Search Styles ─── */
+.search-container {
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border-light);
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.search-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.search-icon {
+  position: absolute;
+  left: 10px;
+  font-size: 0.85rem;
+  opacity: 0.5;
+}
+.search-container input {
+  width: 100%;
+  padding: 8px 32px 8px 30px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-light);
+  border-radius: 4px;
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  transition: all 0.2s;
+}
+.search-container input:focus {
+  outline: none;
+  border-color: var(--accent-blue);
+  background: #fff;
+}
+.btn-clear {
+  position: absolute;
+  right: 10px;
+  background: none;
+  border: none;
+  font-size: 1.1rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  line-height: 1;
+}
+.btn-clear:hover {
+  color: var(--text-primary);
+}
+
+.search-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.match-count {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.nav-arrows {
+  display: flex;
+  gap: 4px;
+}
+.nav-arrows button {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-light);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 0.65rem;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: all 0.1s;
+}
+.nav-arrows button:hover {
+  border-color: var(--accent-blue);
+  color: var(--accent-blue);
+}
+
+.search-highlight {
+  background: #fef08a; /* Soft amber/yellow */
+  color: #0f1c2e;
+  padding: 0 1px;
+  border-radius: 2px;
+}
+
+.t-final.matched {
+  cursor: pointer;
+  border-left: 2px solid #d97706; /* Left border for matches */
+}
+.t-final.focused {
+  background: #fff9eb; /* Slightly brighter highlight */
+}
+
 /* ─── Notification badges in sidebar ─── */
 .notif-badge {
   font-size: 0.65rem;

@@ -69,6 +69,7 @@ export default function useTranscription(videoRef) {
             text: item.text,
             timestamp: item.timestamp,
             speaker: item.speaker,
+            start: item.start,
           });
           lastInterim = null;
         } else {
@@ -168,7 +169,12 @@ export default function useTranscription(videoRef) {
               setInterimText(null);
               setTranscripts((prev) => [
                 ...prev,
-                { text: msg.text, timestamp: ts, speaker: msg.speaker },
+                {
+                  text: msg.text,
+                  timestamp: ts,
+                  speaker: msg.speaker,
+                  start: msg.start,
+                },
               ]);
             } else {
               setInterimText({

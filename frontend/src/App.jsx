@@ -94,6 +94,7 @@ export default function App() {
           interimText={interimText}
           connected={connected}
           language={currentLanguage}
+          onSeek={seekTo}
         />
       </div>
 

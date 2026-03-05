@@ -50,8 +50,8 @@ def _drain_stderr(process: subprocess.Popen, label: str = "ffmpeg"):
             line = process.stderr.readline()
             if not line:
                 break
-            # Silencing verbose process output (HLS tags, etc.)
-            # print(f"[{label}] {line.decode(errors='replace').rstrip()}")
+            # Enable verbose process output for debugging
+            print(f"[{label}] {line.decode(errors='replace').rstrip()}")
     except Exception:
         pass
 
@@ -63,18 +63,14 @@ def _start_ydl_pipe(source: str) -> subprocess.Popen:
     cookies_path = os.getenv("YOUTUBE_COOKIES_PATH", "./cookies.txt")
     is_youtube = "youtube.com" in source.lower() or "youtu.be" in source.lower()
 
-    cmd = ["yt-dlp", "-f", "bestaudio/best", "--no-part", "-o", "-", source]
-    
-    if is_youtube:
-        if proxy:
-            cmd.extend(["--proxy", proxy])
-            print(f"[audio] Using proxy for YouTube source: {proxy}")
-        
-        if os.path.exists(cookies_path):
-            cmd.extend(["--cookies", cookies_path])
-            print(f"[audio] Using cookies file: {cookies_path}")
-        else:
-            print(f"[audio] No cookies file found, running without cookies.")
+    cmd = [
+        "yt-dlp",
+        "-f", "bestaudio/best",
+        "--extractor-args", "youtube:player_client=android",
+        "--no-part",
+        "-o", "-",
+        source
+    ]
 
     process = subprocess.Popen(
         cmd,
